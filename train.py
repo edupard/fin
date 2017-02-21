@@ -39,6 +39,7 @@ with tf.device("/cpu:0"):
     # Create worker classes
     if get_config().num_workers is not None:
         num_workers = get_config().num_workers
+    print('Creating {} workers'.format(num_workers))
     for i in range(num_workers):
         workers.append(Worker(name=i, dr=dr, trainer=trainer,global_episodes=global_episodes))
 

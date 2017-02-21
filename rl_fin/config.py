@@ -56,7 +56,7 @@ class Config(object):
 
     # NN & learning params
     # 1 to render, None to use all availiable cpu's, N to custom number
-    num_workers = 1
+    num_workers = None
     conv_layers = 4
     state_buffer_size = 20
     max_grad_norm = 40.
