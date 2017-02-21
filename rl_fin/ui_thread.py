@@ -346,8 +346,8 @@ class UiThread:
             (get_config().window_px_height, get_config().window_px_width, 3))
         arr = arr[::-1, :, :]
         # debug check
-        # image = Image.fromarray(arr)
-        # image.save('state.png')
+        image = Image.fromarray(arr)
+        image.save('state.png')
         env.post_data(arr.reshape((-1,get_config().window_px_height, get_config().window_px_width, 3)))
 
 _renderer = UiThread()
