@@ -9,6 +9,7 @@ from rl_fin.worker import Worker
 from rl_fin.ac_network import AC_Network
 from rl_fin.config import get_config, EnvType
 from rl_fin.env import get_ui_thread
+from rl_fin.env_factory import create_env
 
 get_ui_thread().start()
 
@@ -33,7 +34,7 @@ if not os.path.exists(model_path):
 with tf.device("/cpu:0"):
     global_episodes = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
     trainer = tf.train.AdamOptimizer(learning_rate=1e-4)
-    master_network = AC_Network('global', None)  # Generate global network
+    master_network = AC_Network('global', None, create_env(dr))  # Generate global network
     num_workers = multiprocessing.cpu_count()  # Set workers ot number of available CPU threads
     workers = []
     # Create worker classes

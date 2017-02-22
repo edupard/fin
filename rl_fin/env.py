@@ -3,9 +3,9 @@ import numpy as np
 import math
 import multiprocessing
 import queue
-
 import uuid
 import time
+from gym import spaces
 
 from rl_fin.data_reader import DataReader
 from rl_fin.config import get_config
@@ -79,6 +79,12 @@ class Environment:
         self._data_queue = queue.Queue()
 
         get_ui_thread().start_env(self)
+
+        self._action_space = spaces.Discrete(3)
+
+    @property
+    def action_space(self):
+        return self._action_space
 
     def post_data(self, arr):
         self._data_queue.put(arr)

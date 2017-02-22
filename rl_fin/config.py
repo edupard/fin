@@ -51,8 +51,6 @@ class Config(object):
     # RL parameters
     # slippage + commission
     costs = 0.03
-    # Actions space dimension: FLAT, BUY, SELL
-    n_actions = 3
 
     # NN & learning params
     # 1 to render, None to use all availiable cpu's, N to custom number

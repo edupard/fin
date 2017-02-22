@@ -1,6 +1,5 @@
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-import tensorflow.contrib.distributions as d
 
 import numpy as np
 
@@ -9,7 +8,7 @@ from rl_fin.config import get_config, EnvType
 
 
 class AC_Network():
-    def __init__(self, scope, trainer):
+    def __init__(self, scope, trainer, env):
         with tf.variable_scope(scope):
             # Input and visual encoding layers
             if get_config().env_type == EnvType.PONG:
@@ -65,16 +64,11 @@ class AC_Network():
             rnn_out = tf.reshape(lstm_outputs, [-1, 256])
 
             # Output layers for policy and value estimations
-            n_actions = get_config().n_actions
-            if get_config().env_type == EnvType.PONG:
-                n_actions = 3
+            n_actions = env.action_space.n
             self.policy = slim.fully_connected(rnn_out, n_actions,
                                                activation_fn=tf.nn.softmax,
                                                weights_initializer=normalized_columns_initializer(0.01),
                                                biases_initializer=None)
-
-            c = d.Categorical(self.policy)
-
 
             self.value = slim.fully_connected(rnn_out, 1,
                                               activation_fn=None,

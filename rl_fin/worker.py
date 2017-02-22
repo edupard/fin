@@ -10,7 +10,7 @@ from rl_fin.utils import discount
 from rl_fin.config import get_config, EnvType
 from rl_fin.env import Environment, Mode
 from rl_fin.data_reader import DataReader
-from PIL import Image
+from rl_fin.env_factory import create_env
 
 def _preprocess_pong_frame(frame):
     frame = frame[34:34+160, :160]
@@ -52,8 +52,11 @@ class Worker():
         summary_path = self.model_path + '/train_' + str(self.number)
         self.summary_writer = tf.summary.FileWriter(summary_path)
 
+        # Environment setup
+        self._env = create_env(dr)
+
         # Create the local copy of the network and the tensorflow op to copy global paramters to local network
-        self.local_AC = AC_Network(self.name, trainer)
+        self.local_AC = AC_Network(self.name, trainer, self._env)
         self.update_local_ops = update_target_graph('global', self.name)
 
     def train(self, rollout, sess, gamma, bootstrap_value):
@@ -94,11 +97,7 @@ class Worker():
 
 
     def work(self, sess, coord, saver):
-        # Environment setup
-        if get_config().env_type == EnvType.PONG:
-            env = gym.make("Pong-v0")
-        elif get_config().env_type == EnvType.FIN:
-            env = Environment(self._dr, Mode.STATE_2D)
+
 
         episode_count = sess.run(self.global_episodes)
         print("Starting worker " + str(self.number))
