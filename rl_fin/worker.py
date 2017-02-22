@@ -115,14 +115,14 @@ class Worker():
                 a_prev = 1
                 ep_deals = 0
                 d = False
-                s = env.reset()
+                s = self._env.reset()
                 if get_config().env_type == EnvType.PONG:
                     s = _preprocess_pong_frame(s)
                 rnn_state = self.local_AC.state_init
 
                 while not d:
                     if get_config().num_workers == 1:
-                        env.render()
+                        self._env.render()
                     # Take an action using probabilities from policy network output.
                     a_dist, v, rnn_state = sess.run(
                         [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out],
@@ -131,14 +131,11 @@ class Worker():
                                    self.local_AC.state_in[1]: rnn_state[1]})
                     a = np.random.choice(a_dist[0], p=a_dist[0])
                     a = np.argmax(a_dist == a)
-                    btn = a
-                    if get_config().env_type == EnvType.PONG:
-                        btn += 1
                     if a != a_prev:
                         ep_deals += 1
                         a_prev = a
 
-                    s1, r, d, _ = env.step(btn)
+                    s1, r, d, _ = self._env.step(a)
                     if get_config().env_type == EnvType.PONG:
                         s1 = _preprocess_pong_frame(s1)
 
