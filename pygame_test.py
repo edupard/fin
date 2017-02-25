@@ -24,6 +24,7 @@ def scaleit(fin, fout, w, h):
     pygame.draw.rect(screen, blue, (0, 0, 10.5, 10.5), 0)
     pygame.draw.line(screen, red, (-10,-10), (100, 100), 1)
     pygame.display.flip()
+    x = pygame.surfarray.array3d(screen)
     pygame.image.save(screen, fout)
 
     # i = pygame.image.load(fin)

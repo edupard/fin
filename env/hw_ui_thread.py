@@ -6,8 +6,24 @@ import numpy as np
 from PIL import Image
 import queue
 
-from rl_fin.config import get_config
+from env.config import get_config
+from env.env import DrawData, Line
+from env.buttons import get_buttons
 
+
+def key_callback(window, key, scan_code, action, mods):
+    if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
+        get_buttons().on_press_esc()
+
+    if key == glfw.KEY_UP and action == glfw.PRESS:
+        get_buttons().on_press_up()
+    if key == glfw.KEY_UP and action == glfw.RELEASE:
+        get_buttons().on_release_up()
+
+    if key == glfw.KEY_DOWN and action == glfw.PRESS:
+        get_buttons().on_press_down()
+    if key == glfw.KEY_DOWN and action == glfw.RELEASE:
+        get_buttons().on_release_down()
 
 class EnvInfo:
 
@@ -27,59 +43,6 @@ class EnvInfo:
     @property
     def texture(self):
         return self._texture
-
-
-class Line:
-    def __init__(self, pl_positive: bool, x0: float, y0: float, x1: float, y1: float):
-        self._pl_positive = pl_positive
-        self._x0 = x0
-        self._y0 = y0
-        self._x1 = x1
-        self._y1 = y1
-
-    @property
-    def pl_positive(self) -> bool:
-        return self._pl_positive
-
-    @property
-    def x0(self) -> float:
-        return self._x0
-
-    @property
-    def y0(self) -> float:
-        return self._y0
-
-    @property
-    def x1(self) -> float:
-        return self._x1
-
-    @property
-    def y1(self) -> float:
-        return self._y1
-
-
-class DrawData:
-    def __init__(self, env, quads, line: Line, grid_lines):
-        self._env = env
-        self._quads = quads
-        self._line = line
-        self._grid_lines = grid_lines
-
-    @property
-    def env(self):
-        return self._env
-
-    @property
-    def grid_lines(self):
-        return self._grid_lines
-
-    @property
-    def quads(self):
-        return self._quads
-
-    @property
-    def line(self) -> Line:
-        return self._line
 
 
 class CommandType(Enum):
@@ -196,6 +159,8 @@ class UiThread:
         if not self._started:
             self._started = True
             self._t.start()
+
+        self.register_key_callback(key_callback)
 
     def stop(self):
         self._q.put(Command(CommandType.STOP, None))
