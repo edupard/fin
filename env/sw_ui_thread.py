@@ -9,22 +9,24 @@ from env.config import get_config
 from env.env import DrawData, Line
 from env.buttons import get_buttons
 
+def _process_event(event):
+    if event.type == pygame.QUIT:
+        get_buttons().on_press_esc()
 
-def key_callback(window, key, scan_code, action, mods):
-    # TODO: implement
-    return
-    # if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
-    #     get_buttons().on_press_esc()
-    #
-    # if key == glfw.KEY_UP and action == glfw.PRESS:
-    #     get_buttons().on_press_up()
-    # if key == glfw.KEY_UP and action == glfw.RELEASE:
-    #     get_buttons().on_release_up()
-    #
-    # if key == glfw.KEY_DOWN and action == glfw.PRESS:
-    #     get_buttons().on_press_down()
-    # if key == glfw.KEY_DOWN and action == glfw.RELEASE:
-    #     get_buttons().on_release_down()
+    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        get_buttons().on_press_esc()
+
+    if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+        get_buttons().on_press_up()
+    if event.type == pygame.KEYUP and event.key == pygame.K_UP:
+        get_buttons().on_release_up()
+
+    if event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+        get_buttons().on_press_down()
+    if event.type == pygame.KEYUP and event.key == pygame.K_DOWN:
+        get_buttons().on_release_down()
+
+
 
 class EnvInfo:
 
@@ -48,7 +50,6 @@ class CommandType(Enum):
     STOP_ENV = 3
     STOP = 4
     GRAB_DATA = 5
-    REGISTER_KEY_CALLBACK = 6
 
 
 class Command:
@@ -76,6 +77,8 @@ class UiThread:
         self._q = queue.Queue()
         # Registered environments
         self._envs = {}
+        # Flag indicating if window is hidden
+        self._screen = None
 
     def start_env(self, env):
         self._q.put(Command(CommandType.START_ENV, env))
@@ -83,25 +86,18 @@ class UiThread:
     def stop_env(self, env):
         self._q.put(Command(CommandType.STOP_ENV, env))
 
-    def register_key_callback(self, callback):
-        self._q.put(Command(CommandType.REGISTER_KEY_CALLBACK, callback))
-
-    def _on_register_key_callback(self, callback):
-        return
-        # TODO: implement
-        glfw.set_key_callback(self._window, cbfun=callback)
-
     def gui_thread(self):
         # Initialize pygame
         # pygame.display.init()
         # pygame.display.set_mode((1, 1))
-
         while True:
-            # pygame.event.poll()
+            if self._screen is not None:
+                event = pygame.event.poll()
+                _process_event(event)
             if self._process_queue():
                 break
 
-        # pygame.quit()
+        pygame.quit()
 
     def render(self, env):
         self._q.put(Command(CommandType.RENDER, env))
@@ -116,8 +112,6 @@ class UiThread:
         if not self._started:
             self._started = True
             self._t.start()
-
-        self.register_key_callback(key_callback)
 
     def stop(self):
         self._q.put(Command(CommandType.STOP, None))
@@ -136,8 +130,6 @@ class UiThread:
                 self._on_grab_data(c.payload)
             elif c.command_type == CommandType.STOP_ENV:
                 self._on_stop_env(c.payload)
-            elif c.command_type == CommandType.REGISTER_KEY_CALLBACK:
-                self._on_register_key_callback(c.payload)
             elif c.command_type == CommandType.STOP:
                 return True
         except queue.Empty:
@@ -155,8 +147,13 @@ class UiThread:
         self._envs[env.id] = env_info
 
     def _on_render(self, env):
+        if self._screen is None:
+            pygame.display.init()
+            self._screen  = pygame.display.set_mode((get_config().window_px_width, get_config().window_px_height))
+
         env_info = self._envs[env.id]
-        # TODO: implement - flip buffers
+        self._screen.blit(env_info.fbo, (0, 0))
+        pygame.display.flip()
 
     def _on_draw(self, dd: DrawData):
         env_info = self._envs[dd.env.id]
