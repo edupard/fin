@@ -5,7 +5,7 @@ from PIL import Image
 import queue
 import pygame
 
-from env.config import get_config
+from env.config import get_config, ThreadingModel
 from env.env import DrawData, Line
 from env.buttons import get_buttons
 
@@ -68,6 +68,8 @@ class Command:
 def recalc_x(x: float) ->float:
     x * get_config().window_px_width
 
+tls = threading.local()
+
 class UiThread:
     def __init__(self):
         thread_func = lambda: self.gui_thread()
@@ -81,32 +83,45 @@ class UiThread:
         self._screen = None
 
     def start_env(self, env):
-        self._q.put(Command(CommandType.START_ENV, env))
+        if get_config().threading_model == ThreadingModel.ST:
+            self._on_start_env(env)
+        elif get_config().threading_model == ThreadingModel.MT:
+            self._q.put(Command(CommandType.START_ENV, env))
 
     def stop_env(self, env):
-        self._q.put(Command(CommandType.STOP_ENV, env))
+        if get_config().threading_model == ThreadingModel.ST:
+            self._on_stop_env(env)
+        elif get_config().threading_model == ThreadingModel.MT:
+            self._q.put(Command(CommandType.STOP_ENV, env))
 
     def gui_thread(self):
-        # Initialize pygame
-        # pygame.display.init()
-        # pygame.display.set_mode((1, 1))
         while True:
             if self._screen is not None:
                 event = pygame.event.poll()
                 _process_event(event)
             if self._process_queue():
                 break
-
         pygame.quit()
 
     def render(self, env):
-        self._q.put(Command(CommandType.RENDER, env))
+        if get_config().threading_model == ThreadingModel.ST:
+            env_info = self._get_env_info(env)
+            surface = env_info.fbo.copy()
+            self._q.put(Command(CommandType.RENDER, surface))
+        elif get_config().threading_model == ThreadingModel.MT:
+            self._q.put(Command(CommandType.RENDER, env))
 
     def draw(self, dd: DrawData):
-        self._q.put(Command(CommandType.DRAW, dd))
+        if get_config().threading_model == ThreadingModel.ST:
+            self._on_draw(dd)
+        elif get_config().threading_model == ThreadingModel.MT:
+            self._q.put(Command(CommandType.DRAW, dd))
 
     def grab_data(self, env):
-        self._q.put(Command(CommandType.GRAB_DATA, env))
+        if get_config().threading_model == ThreadingModel.ST:
+            self._on_grab_data(env)
+        elif get_config().threading_model == ThreadingModel.MT:
+            self._q.put(Command(CommandType.GRAB_DATA, env))
 
     def start(self):
         if not self._started:
@@ -136,27 +151,50 @@ class UiThread:
             pass
         return False
 
+    def _put_env_info(self, env_info):
+        if get_config().threading_model == ThreadingModel.ST:
+            tls.env_info = env_info
+        elif get_config().threading_model == ThreadingModel.MT:
+            self._envs[env_info.env.id] = env_info
+
+    def _get_env_info(self, env):
+        if get_config().threading_model == ThreadingModel.ST:
+            return tls.env_info
+        elif get_config().threading_model == ThreadingModel.MT:
+            return self._envs[env.id]
+
+    def _remove_env_info(self, env):
+        if get_config().threading_model == ThreadingModel.ST:
+            tls.env_info = None
+        elif get_config().threading_model == ThreadingModel.MT:
+            self._envs.pop(env.id)
+
     def _on_stop_env(self, env):
-        self._envs.pop(env.id)
+        self._remove_env_info(env)
 
     def _on_start_env(self, env):
         # create framebuffer object to render into
         fbo = pygame.Surface((get_config().window_px_width, get_config().window_px_height), pygame.SRCALPHA, 32)
 
         env_info = EnvInfo(env, fbo=fbo)
-        self._envs[env.id] = env_info
+        self._put_env_info(env_info)
 
-    def _on_render(self, env):
+    def _on_render(self, payload):
         if self._screen is None:
             pygame.display.init()
             self._screen  = pygame.display.set_mode((get_config().window_px_width, get_config().window_px_height))
 
-        env_info = self._envs[env.id]
-        self._screen.blit(env_info.fbo, (0, 0))
+        if get_config().threading_model == ThreadingModel.ST:
+            surface = payload
+            self._screen.blit(surface, (0, 0))
+        elif get_config().threading_model == ThreadingModel.MT:
+            env = payload
+            env_info = self._get_env_info(env)
+            self._screen.blit(env_info.fbo, (0, 0))
         pygame.display.flip()
 
     def _on_draw(self, dd: DrawData):
-        env_info = self._envs[dd.env.id]
+        env_info = self._get_env_info(dd.env)
 
         color = (0, 0, 0)
         env_info.fbo.fill(color)
@@ -198,7 +236,7 @@ class UiThread:
             pygame.draw.line(env_info.fbo, color, (x0, y0), (x1, y1), 1)
 
     def _on_grab_data(self, env):
-        env_info = self._envs[env.id]
+        env_info = self._get_env_info(env)
         arr = pygame.surfarray.array3d(env_info.fbo)
         arr = np.transpose(arr, [1, 0, 2])
         # arr = arr[::-1, :, :]
