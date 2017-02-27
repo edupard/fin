@@ -8,10 +8,10 @@ class RenderingBackend(Enum):
 
 class Config(object):
     # rendering parameters
-    rendering_backend = RenderingBackend.HARDWARE
+    rendering_backend = RenderingBackend.SOFTWARE
     # screen resolution
-    window_px_width = 160
-    window_px_height = 160
+    window_px_width = 42
+    window_px_height = 42
     # window width in bars
     ww = 100
     # bars per second

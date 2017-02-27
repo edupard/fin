@@ -7,6 +7,8 @@ class EnvironmentType(Enum):
 
 class Config(object):
     environment = EnvironmentType.FIN
+    log_dir = './models/pong'
+    num_workers = 8
 
 _config = Config()
 

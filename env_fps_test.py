@@ -7,8 +7,8 @@ from timeit import default_timer as timer
 from env_factory import startup, shutdown, create_env, stop_env
 from config import get_config, EnvironmentType
 
-# num_threads = 1
-num_threads = multiprocessing.cpu_count()
+num_threads = 1
+# num_threads = multiprocessing.cpu_count()
 render = False
 
 def env_thread(wroker_idx):
@@ -23,7 +23,8 @@ def env_thread(wroker_idx):
             start = end
         if wroker_idx == 0 and render:
             env.render()
-        s, r, d, _ = env.step(np.random.randint(0, 3))
+        s, r, d, _ = env.step(1)
+        # s, r, d, _ = env.step(np.random.randint(0, 3))
         if d:
             break
     stop_env(env)

@@ -265,10 +265,15 @@ class UiThread:
             # Square rendering
             gl.glBegin(gl.GL_QUADS)
             gl.glColor3f(0.600, 0.196, 0.800)
-            gl.glVertex3f(quads[i][0][0], quads[i][0][1], 0)
-            gl.glVertex3f(quads[i][1][0], quads[i][1][1], 0)
-            gl.glVertex3f(quads[i][2][0], quads[i][2][1], 0)
-            gl.glVertex3f(quads[i][3][0], quads[i][3][1], 0)
+            x_l = quads[i][0]
+            y_l = quads[i][1]
+            x_r = quads[i][2]
+            y_h = quads[i][3]
+
+            gl.glVertex3f(x_l, y_h, 0)
+            gl.glVertex3f(x_r, y_h, 0)
+            gl.glVertex3f(x_r, y_l, 0)
+            gl.glVertex3f(x_l, y_l, 0)
             gl.glEnd()
 
         # draw line

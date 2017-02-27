@@ -6,10 +6,20 @@ import queue
 import uuid
 import time
 from gym import spaces
+from gym.spaces.box import Box
+import cv2
 
 from data_source.data_source import get_datasource
 from env.config import get_config, RenderingBackend
 from env.action import Action, convert_to_action
+
+def _process_frame42(frame):
+    frame = frame.reshape((42,42,3))
+    frame = frame.mean(2)
+    frame = frame.astype(np.float32)
+    frame *= (1.0 / 255.0)
+    frame = np.reshape(frame, [42, 42, 1])
+    return frame
 
 class Line:
     def __init__(self, pl_positive: bool, x0: float, y0: float, x1: float, y1: float):
@@ -60,6 +70,9 @@ class DrawData:
 if get_config().rendering_backend == RenderingBackend.HARDWARE:
     from env.hw_ui_thread import get_ui_thread as get_backend_ui_thread
     ui_thread = get_backend_ui_thread()
+elif get_config().rendering_backend == RenderingBackend.SOFTWARE:
+    from env.sw_ui_thread import get_ui_thread as get_backend_ui_thread
+    ui_thread = get_backend_ui_thread()
 
 def get_ui_thread():
     return ui_thread
@@ -109,6 +122,11 @@ class Environment:
         get_ui_thread().start_env(self)
 
         self._action_space = spaces.Discrete(3)
+        self._observation_space = Box(0.0, 1.0, [42, 42, 1])
+
+    @property
+    def observation_space(self):
+        return self._observation_space
 
     @property
     def action_space(self):
@@ -165,7 +183,7 @@ class Environment:
         def calc_scaled_y(px: float) -> float:
             return (px - px_min) / (px_max - px_min)
 
-        quads = np.zeros((get_config().ww + 1, 4, 2), dtype=np.float)
+        quads = np.zeros((get_config().ww + 1, 4), dtype=np.float)
         # First point
         x_r = calc_scaled_x(t_max)
 
@@ -174,19 +192,13 @@ class Environment:
             px = self._data[data_idx][1]
             t = float(data_idx)
             x_l = calc_scaled_x(t)
-            y = calc_scaled_y(px)
+            y_h = calc_scaled_y(px)
+            y_l = 0.0
 
-            quads[i][0][0] = x_l
-            quads[i][0][1] = y
-
-            quads[i][1][0] = x_r
-            quads[i][1][1] = y
-
-            quads[i][2][0] = x_r
-            quads[i][2][1] = 0
-
-            quads[i][3][0] = x_l
-            quads[i][3][1] = 0
+            quads[i][0] = x_l
+            quads[i][1] = y_l
+            quads[i][2] = x_r
+            quads[i][3] = y_h
 
             x_r = x_l
 
@@ -239,7 +251,8 @@ class Environment:
     def _get_state(self):
         get_ui_thread().grab_data(self)
         arr = self._data_queue.get()
-        return arr
+
+        return _process_frame42(arr)
 
     def step(self, action: int):
         d = False
