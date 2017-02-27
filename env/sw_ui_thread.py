@@ -176,32 +176,32 @@ class UiThread:
             w = x_r - x_l
             h = y_h - y_l
 
+            # pygame coordinate system origin is at the top-left corner
             x_l_px = x_l * get_config().window_px_width
-            y_l_px = y_l * get_config().window_px_height
+            y_h_px = get_config().window_px_height - y_h * get_config().window_px_height
             w_px = w * get_config().window_px_width
             h_px = h * get_config().window_px_height
 
-            pygame.draw.rect(env_info.fbo, color, (x_l_px, y_l_px, w_px, h_px), 0)
+            pygame.draw.rect(env_info.fbo, color, (x_l_px, y_h_px, w_px, h_px), 0)
 
         # draw line
         if dd.line is not None:
             if dd.line.pl_positive:
-
                 color = (50, 205, 50)
             else:
                 color = (128, 0, 0)
 
             x0 = dd.line.x0 * get_config().window_px_width
-            y0 = dd.line.y0 * get_config().window_px_height
+            y0 = get_config().window_px_height - dd.line.y0 * get_config().window_px_height
             x1 = dd.line.x1 * get_config().window_px_width
-            y1 = dd.line.y1 * get_config().window_px_height
+            y1 = get_config().window_px_height - dd.line.y1 * get_config().window_px_height
             pygame.draw.line(env_info.fbo, color, (x0, y0), (x1, y1), 1)
 
     def _on_grab_data(self, env):
         env_info = self._envs[env.id]
         arr = pygame.surfarray.array3d(env_info.fbo)
         arr = np.transpose(arr, [1, 0, 2])
-        arr = arr[::-1, :, :]
+        # arr = arr[::-1, :, :]
         # debug check
         # image = Image.fromarray(arr)
         # image.save('state.png')
