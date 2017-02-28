@@ -118,8 +118,7 @@ class Environment:
         self._pl_positive = False
 
         self._data_queue = queue.Queue()
-
-        get_ui_thread().start_env(self)
+        self._initialized = False
 
         self._action_space = spaces.Discrete(3)
         self._observation_space = Box(0.0, 1.0, [42, 42, 1])
@@ -212,6 +211,9 @@ class Environment:
         get_ui_thread().draw(self._dd)
 
     def reset(self):
+        if not self._initialized:
+            get_ui_thread().start_env(self)
+            self._initialized = True
         self._ep_start_idx = get_config().ww
         if get_config().rand_start:
             self._ep_start_idx = np.random.randint(get_config().ww,
