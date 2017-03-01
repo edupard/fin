@@ -6,8 +6,8 @@ class EnvironmentType(Enum):
 
 
 class Config(object):
-    environment = EnvironmentType.FIN
-    log_dir = './models/sin'
+    environment = EnvironmentType.PONG
+    log_dir = './models/pong'
 
 _config = Config()
 
