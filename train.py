@@ -17,19 +17,22 @@ def new_cmd(session, name, cmd):
 
 
 def create_commands(session, num_workers, shell='bash'):
+    conda_cmd = ['source activate rl_fin']
     # for launching the TF workers and for launching tensorboard
     base_cmd = [
-        'source activate rl_fin &&',
         'CUDA_VISIBLE_DEVICES=',
         sys.executable, 'worker.py',
         '--num-workers', str(num_workers)]
 
     cmds_map = [new_cmd(session, "ps", base_cmd + ["--job-name", "ps"])]
+    conda_cmds_map = [new_cmd(session, "ps", conda_cmd)]
     for i in range(num_workers):
         cmds_map += [new_cmd(session,
             "w-%d" % i, base_cmd + ["--job-name", "worker", "--task", str(i)])]
+        conda_cmds_map += [new_cmd(session, "w-%d" % i, conda_cmd)]
 
-    cmds_map += [new_cmd(session, "tb", ["source activate tensorflow && tensorboard", "--logdir", get_config().log_dir, "--port", "12345"])]
+    conda_cmds_map += [new_cmd(session, "tb", conda_cmd)]
+    cmds_map += [new_cmd(session, "tb", ["tensorboard", "--logdir", get_config().log_dir, "--port", "12345"])]
     cmds_map += [new_cmd(session, "htop", ["htop"])]
 
     windows = [v[0] for v in cmds_map]
@@ -50,6 +53,10 @@ def create_commands(session, num_workers, shell='bash'):
     ]
     for w in windows[1:]:
         cmds += ["tmux new-window -t {} -n {} {}".format(session, w, shell)]
+    cmds += ["sleep 1"]
+
+    for window, cmd in conda_cmds_map:
+        cmds += [cmd]
     cmds += ["sleep 1"]
 
     for window, cmd in cmds_map:
