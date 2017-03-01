@@ -57,10 +57,13 @@ def create_commands(session, num_workers, shell='bash'):
 
     for window, cmd in conda_cmds_map:
         cmds += [cmd]
-    cmds += ["sleep 1"]
 
+    first = True
     for window, cmd in cmds_map:
         cmds += [cmd]
+        if first:
+            cmds += ["sleep 5"]
+            first = False
 
     return cmds, notes
 
