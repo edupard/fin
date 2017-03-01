@@ -10,16 +10,18 @@ from gym.spaces.box import Box
 import cv2
 
 from data_source.data_source import get_datasource
-from env.config import get_config, RenderingBackend
+from env.config import get_config, RenderingBackend, RewardType, RewardAlgo
 from env.action import Action, convert_to_action
 
+
 def _process_frame42(frame):
-    frame = frame.reshape((42,42,3))
+    frame = frame.reshape((42, 42, 3))
     frame = frame.mean(2)
     frame = frame.astype(np.float32)
     frame *= (1.0 / 255.0)
     frame = np.reshape(frame, [42, 42, 1])
     return frame
+
 
 class Line:
     def __init__(self, pl_positive: bool, x0: float, y0: float, x1: float, y1: float):
@@ -49,6 +51,7 @@ class Line:
     def y1(self) -> float:
         return self._y1
 
+
 class DrawData:
     def __init__(self, env, quads, line: Line):
         self._env = env
@@ -67,20 +70,26 @@ class DrawData:
     def line(self) -> Line:
         return self._line
 
+
 if get_config().rendering_backend == RenderingBackend.HARDWARE:
     from env.hw_ui_thread import get_ui_thread as get_backend_ui_thread
+
     ui_thread = get_backend_ui_thread()
 elif get_config().rendering_backend == RenderingBackend.SOFTWARE:
     from env.sw_ui_thread import get_ui_thread as get_backend_ui_thread
+
     ui_thread = get_backend_ui_thread()
+
 
 def get_ui_thread():
     return ui_thread
+
 
 class State(Enum):
     LONG = 1
     FLAT = 0
     SHORT = -1
+
 
 class StateItem:
     def __init__(self, d: bool, s, r: float):
@@ -214,18 +223,30 @@ class Environment:
         if not self._initialized:
             get_ui_thread().start_env(self)
             self._initialized = True
+
+        if get_config().ww > self._data_length - get_config().episode_length:
+            raise "game length is too long"
+
         self._ep_start_idx = get_config().ww
         if get_config().rand_start:
+            # TODO: check upper bound for start idx = self._data_length - get_config().episode_length - 2
+            # self._ep_start_idx = get_config().ww
             self._ep_start_idx = np.random.randint(get_config().ww,
-                                                   high=self._data_length - 1)
+                                                   high=self._data_length - get_config().episode_length - 1)
+            # self._ep_start_idx = np.random.randint(get_config().ww,
+            #                                        high=self._data_length - 1)
+        self._ep_end_idx = self._ep_start_idx + get_config().episode_length
         return self._setup()
 
     def _setup(self):
+        self._tr = 0.0
         self._dd = None
+        self._prev_px = None
         self._f = 0
         self._perf_counter_start = time.perf_counter()
 
         self._start_time = float(self._ep_start_idx)
+        self._end_time = float(self._ep_end_idx)
         self._current_time = self._start_time
 
         s_idx = self._ep_start_idx
@@ -261,54 +282,96 @@ class Environment:
         r = 0.0
         self._current_time += get_config().bpf
         last_data_idx = math.floor(self._current_time)
-        if last_data_idx >= self._data_length - 1:
-            last_data_idx = self._data_length - 1
+        if self._current_time > self._end_time:
+            self._current_time = self._end_time
             d = True
+        # if last_data_idx >= self._data_length - 1:
+        #     last_data_idx = self._data_length - 1
+        #     d = True
 
         a = convert_to_action(action)
 
         last_px = self._data[last_data_idx][1]
 
         # handle reward
-        if self._state == State.LONG and (a == Action.FLAT or a == Action.SELL):
-            ex_px = last_px
-            pl = ex_px - self._ent_px - 2 * get_config().costs
-            r = pl / self._ent_px
-        elif self._state == State.SHORT and (a == Action.FLAT or a == Action.BUY):
-            ex_px = last_px + get_config().costs
-            pl = self._ent_px - ex_px - 2 * get_config().costs
-            r = pl / self._ent_px
+        if get_config().reward_type == RewardType.RPL or get_config().reward_type == RewardType.TPL:
+            if self._state == State.LONG and (a == Action.FLAT or a == Action.SELL):
+                pl = last_px - self._ent_px - 2 * get_config().costs
+                factor = self._ent_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                r += pl / factor
+            elif self._state == State.SHORT and (a == Action.FLAT or a == Action.BUY):
+                pl = self._ent_px - last_px - 2 * get_config().costs
+                factor = self._ent_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                r += pl / factor
         # handle position
         if a == Action.BUY and self._state != State.LONG:
             self._ent_px = last_px
             self._ent_time = self._current_time
             self._state = State.LONG
+            self._prev_px = last_px
+            if get_config().reward_type == RewardType.URPL:
+                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                r += (-1. if self._state == State.FLAT else -2.) * get_config().costs / factor
         elif a == Action.SELL and self._state != State.SHORT:
             self._ent_px = last_px
             self._ent_time = self._current_time
             self._state = State.SHORT
+            self._prev_px = last_px
+            if get_config().reward_type == RewardType.URPL:
+                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                r += (-1. if self._state == State.FLAT else -2.) * get_config().costs / factor
         elif a == Action.FLAT:
             self._ent_px = None
             self._ent_time = None
             self._state = State.FLAT
-            self._pl_positive = False
+            self._prev_px = None
+            if get_config().reward_type == RewardType.URPL and self._state != State.FLAT:
+                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                r += -get_config().costs / factor
 
+        if get_config().reward_type == RewardType.URPL:
+            if self._state == State.LONG:
+                pl = last_px - self._prev_px
+                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                r += pl / factor
+            elif self._state == State.SHORT:
+                pl = self._prev_px - last_px
+                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                r += pl / factor
+
+        # Calculate if pl positive
+        self._pl_positive = False
         if self._state == State.LONG:
             self._pl_positive = (last_px > self._ent_px)
         elif self._state == State.SHORT:
             self._pl_positive = (last_px < self._ent_px)
 
         self._draw()
+        # handle terminal state
         if d:
-            if self._state == State.LONG:
-                ex_px = last_px
-                pl = ex_px - self._ent_px - 2 * get_config().costs
-                r = pl / self._ent_px
-            elif self._state == State.SHORT:
-                ex_px = last_px + get_config().costs
-                pl = self._ent_px - ex_px - 2 * get_config().costs
-                r = pl / self._ent_px
+            if get_config().reward_type == RewardType.RPL or get_config().reward_type == RewardType.TPL:
+                if self._state == State.LONG:
+                    pl = last_px - self._ent_px - 2 * get_config().costs
+                    factor = self._ent_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                    r += pl / factor
+                elif self._state == State.SHORT:
+                    pl = self._ent_px - last_px - 2 * get_config().costs
+                    factor = self._ent_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                    r += pl / factor
+            elif get_config().reward_type == RewardType.URPL:
+                if self._state != State.FLAT:
+                    factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
+                    r += -get_config().costs / factor
 
+        self._prev_px = last_px
+
+        # Emit reward only when done
+        if get_config().reward_type == RewardType.TPL:
+            self._tr += r
+            if d:
+                r = self._tr
+            else:
+                r = 0.
         return self._get_state(), r, d, None
 
     def stop(self):

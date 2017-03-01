@@ -1,5 +1,6 @@
 import math
 from enum import Enum
+from data_source.config import get_config as get_data_config
 
 
 class RenderingBackend(Enum):
@@ -11,6 +12,15 @@ class ThreadingModel(Enum):
     ST = 0
     MT = 1
 
+class RewardType(Enum):
+    RPL = 0
+    URPL = 1
+    TPL = 2
+
+class RewardAlgo(Enum):
+    PCT = 0
+    CCY = 1
+
 
 class Config(object):
     # rendering parameters
@@ -19,6 +29,8 @@ class Config(object):
     # screen resolution
     window_px_width = 42
     window_px_height = 42
+    # episode length
+    episode_length = 24 * 7 * 60 //  get_data_config().bar_min
     # window width in bars
     ww = 100
     # bars per second
@@ -36,12 +48,14 @@ class Config(object):
     rolling_px_range_factor = 0.9
 
     # RL parameters
+    reward_type = RewardType.TPL
+    reward_algo = RewardAlgo.PCT
     # slippage + commission
-    costs = 0.03
+    costs = 0.00
 
     rand_start = True
 
-    draw_line = False
+    draw_line = True
 
 _config = Config()
 

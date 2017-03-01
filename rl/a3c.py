@@ -7,6 +7,8 @@ import six.moves.queue as queue
 import scipy.signal
 import threading
 
+from rl.config import get_config
+
 
 def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
@@ -117,6 +119,8 @@ runner appends the policy to the queue.
     last_features = policy.get_initial_features()
     length = 0
     rewards = 0
+    deals = 0
+    a_p = 0
 
     while True:
         terminal_end = False
@@ -126,7 +130,11 @@ runner appends the policy to the queue.
             fetched = policy.act(last_state, *last_features)
             action, value_, features = fetched[0], fetched[1], fetched[2:]
             # argmax to convert from one-hot
-            state, reward, terminal, info = env.step(action.argmax())
+            a = action.argmax()
+            state, reward, terminal, info = env.step(a)
+            if a_p != a:
+                deals += 1
+                a_p = a
             if render:
                 env.render()
 
@@ -138,20 +146,27 @@ runner appends the policy to the queue.
             last_state = state
             last_features = features
 
-            if info:
-                summary = tf.Summary()
-                for k, v in info.items():
-                    summary.value.add(tag=k, simple_value=float(v))
-                summary_writer.add_summary(summary, policy.global_step.eval())
-                summary_writer.flush()
+            # if info:
+            #     summary = tf.Summary()
+            #     for k, v in info.items():
+            #         summary.value.add(tag=k, simple_value=float(v))
+            #     summary_writer.add_summary(summary, policy.global_step.eval())
+            #     summary_writer.flush()
 
             if terminal:
                 terminal_end = True
                 last_state = env.reset()
                 last_features = policy.get_initial_features()
-                print("Episode finished. Sum of rewards: %d. Length: %d" % (rewards, length))
+                print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
+                summary = tf.Summary()
+                summary.value.add(tag='Total reward', simple_value=float(rewards))
+                summary.value.add(tag='Round length', simple_value=float(length))
+                summary.value.add(tag='Deals count', simple_value=float(deals))
+                summary_writer.add_summary(summary, policy.global_step.eval())
+                summary_writer.flush()
                 length = 0
                 rewards = 0
+                deals = 0
                 break
 
         if not terminal_end:
@@ -210,13 +225,14 @@ should be computed.
             # on the one hand;  but on the other hand, we get less frequent parameter updates, which
             # slows down learning.  In this code, we found that making local steps be much
             # smaller than 20 makes the algorithm more difficult to tune and to get to work.
-            self.runner = RunnerThread(env, pi, 20, visualise)
+            self.runner = RunnerThread(env, pi, get_config().buffer_length, visualise)
 
             grads = tf.gradients(self.loss, pi.var_list)
 
             tf.summary.scalar("model/policy_loss", pi_loss / bs)
             tf.summary.scalar("model/value_loss", vf_loss / bs)
             tf.summary.scalar("model/entropy", entropy / bs)
+            tf.summary.scalar("model/loss", self.loss / bs)
             tf.summary.image("model/state", pi.x)
             tf.summary.scalar("model/grad_global_norm", tf.global_norm(grads))
             tf.summary.scalar("model/var_global_norm", tf.global_norm(pi.var_list))
@@ -261,7 +277,7 @@ server.
 
         sess.run(self.sync)  # copy weights from shared to local
         rollout = self.pull_batch_from_queue()
-        batch = process_rollout(rollout, gamma=0.99, lambda_=1.0)
+        batch = process_rollout(rollout, gamma=get_config().gamma, lambda_=get_config()._lambda)
 
         should_compute_summary = self.task == 0 and self.local_steps % 11 == 0
 
