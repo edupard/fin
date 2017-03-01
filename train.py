@@ -17,7 +17,7 @@ def new_cmd(session, name, cmd):
 
 
 def create_commands(session, num_workers, shell='bash'):
-    conda_cmd = ['source activate rl_fin']
+    conda_cmd = ['source', 'activate', 'rl_fin']
     # for launching the TF workers and for launching tensorboard
     base_cmd = [
         'CUDA_VISIBLE_DEVICES=',
