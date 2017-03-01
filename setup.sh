@@ -26,7 +26,7 @@ pip install tensorflow==0.12
 #software rendering
 pip install pygame
 #headless opengl
-sudo apt install mesa-utils
+sudo apt-get install mesa-utils
 sudo apt-get install libglfw3
 pip install glfw==1.3.3
 pip install PyOpenGL==3.1.0

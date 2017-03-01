@@ -110,10 +110,11 @@ Setting up Tensorflow for data parallel work
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('--task', default=0, type=int, help='Task index')
     parser.add_argument('--job-name', default="worker", help='worker or ps')
+    parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
     parser.add_argument('--visualise', action='store_true', help="Visualise")
 
     args = parser.parse_args()
-    spec = cluster_spec(get_config().num_workers, 1)
+    spec = cluster_spec(args.num_workers, 1)
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
     if args.job_name == "worker":

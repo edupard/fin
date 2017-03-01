@@ -8,7 +8,6 @@ class EnvironmentType(Enum):
 class Config(object):
     environment = EnvironmentType.FIN
     log_dir = './models/sin'
-    num_workers = 8
 
 _config = Config()
 
