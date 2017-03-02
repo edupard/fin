@@ -157,7 +157,7 @@ runner appends the policy to the queue.
                 terminal_end = True
                 last_state = env.reset()
                 last_features = policy.get_initial_features()
-                print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
+                print("Episode finished. Sum of rewards: %.3f Deals: %d, Length: %d" % (rewards, deals, length))
                 summary = tf.Summary()
                 summary.value.add(tag='Total reward', simple_value=float(rewards))
                 summary.value.add(tag='Round length', simple_value=float(length))
