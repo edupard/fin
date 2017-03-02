@@ -9,6 +9,7 @@ from env.config import get_config, ThreadingModel
 from env.env import DrawData, Line
 from env.buttons import get_buttons
 
+
 def _process_event(event):
     if event.type == pygame.QUIT:
         get_buttons().on_press_esc()
@@ -27,12 +28,11 @@ def _process_event(event):
         get_buttons().on_release_down()
 
 
-
 class EnvInfo:
-
     def __init__(self, env, fbo):
         self._env = env
         self._fbo = fbo
+        self.dd = None
 
     @property
     def env(self):
@@ -65,10 +65,27 @@ class Command:
     def payload(self):
         return self._payload
 
-def recalc_x(x: float) ->float:
+
+def recalc_x(x: float) -> float:
     x * get_config().window_px_width
 
+
+def render_line_to_surface(surf, dd: DrawData):
+    if dd.line is not None:
+        if dd.line.pl_positive:
+            color = (50, 205, 50)
+        else:
+            color = (128, 0, 0)
+
+        x0 = dd.line.x0 * get_config().window_px_width
+        y0 = get_config().window_px_height - dd.line.y0 * get_config().window_px_height
+        x1 = dd.line.x1 * get_config().window_px_width
+        y1 = get_config().window_px_height - dd.line.y1 * get_config().window_px_height
+        pygame.draw.line(surf, color, (x0, y0), (x1, y1), 1)
+
+
 tls = threading.local()
+
 
 class UiThread:
     def __init__(self):
@@ -107,7 +124,7 @@ class UiThread:
         if get_config().threading_model == ThreadingModel.ST:
             env_info = self._get_env_info(env)
             surface = env_info.fbo.copy()
-            self._q.put(Command(CommandType.RENDER, surface))
+            self._q.put(Command(CommandType.RENDER, (surface, env_info.dd)))
         elif get_config().threading_model == ThreadingModel.MT:
             self._q.put(Command(CommandType.RENDER, env))
 
@@ -182,15 +199,19 @@ class UiThread:
     def _on_render(self, payload):
         if self._screen is None:
             pygame.display.init()
-            self._screen  = pygame.display.set_mode((get_config().window_px_width, get_config().window_px_height))
+            self._screen = pygame.display.set_mode((get_config().window_px_width, get_config().window_px_height))
 
         if get_config().threading_model == ThreadingModel.ST:
-            surface = payload
+            surface, dd = payload
             self._screen.blit(surface, (0, 0))
         elif get_config().threading_model == ThreadingModel.MT:
             env = payload
             env_info = self._get_env_info(env)
+            dd = env_info.dd
             self._screen.blit(env_info.fbo, (0, 0))
+        if not get_config().draw_training_line:
+            render_line_to_surface(self._screen, dd)
+
         pygame.display.flip()
 
     def _on_draw(self, dd: DrawData):
@@ -223,17 +244,10 @@ class UiThread:
             pygame.draw.rect(env_info.fbo, color, (x_l_px, y_h_px, w_px, h_px), 0)
 
         # draw line
-        if dd.line is not None:
-            if dd.line.pl_positive:
-                color = (50, 205, 50)
-            else:
-                color = (128, 0, 0)
+        if get_config().draw_training_line:
+            render_line_to_surface(env_info.fbo, dd)
 
-            x0 = dd.line.x0 * get_config().window_px_width
-            y0 = get_config().window_px_height - dd.line.y0 * get_config().window_px_height
-            x1 = dd.line.x1 * get_config().window_px_width
-            y1 = get_config().window_px_height - dd.line.y1 * get_config().window_px_height
-            pygame.draw.line(env_info.fbo, color, (x0, y0), (x1, y1), 1)
+        env_info.dd = dd
 
     def _on_grab_data(self, env):
         env_info = self._get_env_info(env)
@@ -243,7 +257,8 @@ class UiThread:
         # debug check
         # image = Image.fromarray(arr)
         # image.save('state.png')
-        env.post_data(arr.reshape((-1,get_config().window_px_height, get_config().window_px_width, 3)))
+        env.post_data(arr.reshape((-1, get_config().window_px_height, get_config().window_px_width, 3)))
+
 
 _renderer = UiThread()
 

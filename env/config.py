@@ -56,7 +56,7 @@ class Config(object):
 
     rand_start = True
 
-    draw_line = False
+    draw_training_line = False
 
 _config = Config()
 

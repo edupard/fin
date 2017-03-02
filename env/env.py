@@ -221,7 +221,7 @@ class Environment:
             x_r = x_l
 
         line = None
-        if get_config().draw_line and self._ent_time is not None:
+        if self._ent_time is not None:
             line = Line(self._pl_positive, calc_scaled_x(self._ent_time), calc_scaled_y(self._ent_px),
                         calc_scaled_x(self._current_time), calc_scaled_y(last_px))
 
