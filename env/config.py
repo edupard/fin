@@ -30,7 +30,7 @@ class Config(object):
     window_px_width = 42
     window_px_height = 42
     # episode length
-    episode_length = 24 * 7 * 60 //  get_data_config().bar_min
+    episode_length = 100#24 * 7 * 60 //  get_data_config().bar_min
     # window width in bars
     ww = 100
     # bars per second
@@ -48,7 +48,7 @@ class Config(object):
     rolling_px_range_factor = 0.9
 
     # RL parameters
-    reward_type = RewardType.TPL
+    reward_type = RewardType.URPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
     costs = 0.00
