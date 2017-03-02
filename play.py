@@ -47,7 +47,7 @@ def main():
         frames_passed = 0
         while not d and not get_buttons().esc_hit:
             env.render()
-            s, r, d, _ = env.step(get_buttons().action)
+            s, r, d, i = env.step(get_buttons().action)
             frames_passed += 1
             d_p = (frames_passed / get_config().fps) * get_config().bps * get_data_config().bar_min // (24 * 60)
             if d_p != days_passed:
@@ -59,6 +59,7 @@ def main():
             if r != 0:
                 print('Cum reward: {:.3f} reward: {:.3f}'.format(t_r, r))
             idx += 1
+        print('long deals: {} length: {} short deals: {} length: {}'.format(i.long, i.long_length, i.short, i.short_length))
         round_length = idx
         eq = eq[:round_length]
         plt.plot(eq)

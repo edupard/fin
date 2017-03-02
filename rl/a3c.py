@@ -8,6 +8,7 @@ import scipy.signal
 import threading
 
 from rl.config import get_config
+from config import EnvironmentType, get_config as get_main_config
 
 
 def discount(x, gamma):
@@ -119,8 +120,6 @@ runner appends the policy to the queue.
     last_features = policy.get_initial_features()
     length = 0
     rewards = 0
-    deals = 0
-    a_p = 0
 
     while True:
         terminal_end = False
@@ -132,9 +131,6 @@ runner appends the policy to the queue.
             # argmax to convert from one-hot
             a = action.argmax()
             state, reward, terminal, info = env.step(a)
-            if a_p != a:
-                deals += 1
-                a_p = a
             if render:
                 env.render()
 
@@ -157,16 +153,28 @@ runner appends the policy to the queue.
                 terminal_end = True
                 last_state = env.reset()
                 last_features = policy.get_initial_features()
-                print("Episode finished. Sum of rewards: %.3f Deals: %d, Length: %d" % (rewards, deals, length))
+
+                print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
+                if get_main_config().environment == EnvironmentType.FIN:
+                    print('Positions: {} long deals: {} length: {} short deals: {} length: {}'.format(
+                        info.long + info.short,
+                        info.long,
+                        info.long_length,
+                        info.short,
+                        info.short_length))
                 summary = tf.Summary()
                 summary.value.add(tag='Total reward', simple_value=float(rewards))
                 summary.value.add(tag='Round length', simple_value=float(length))
-                summary.value.add(tag='Deals count', simple_value=float(deals))
+                if get_main_config().environment == EnvironmentType.FIN:
+                    summary.value.add(tag='Long deals', simple_value=float(info.long))
+                    summary.value.add(tag='Long length', simple_value=float(info.long_length))
+                    summary.value.add(tag='Short deals', simple_value=float(info.short))
+                    summary.value.add(tag='Short length', simple_value=float(info.short_length))
+                    summary.value.add(tag='Positions', simple_value=float(info.long + info.short))
                 summary_writer.add_summary(summary, policy.global_step.eval())
                 summary_writer.flush()
                 length = 0
                 rewards = 0
-                deals = 0
                 break
 
         if not terminal_end:

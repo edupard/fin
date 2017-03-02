@@ -52,6 +52,14 @@ class Line:
         return self._y1
 
 
+class Info:
+    def __init__(self):
+        self.long = 0
+        self.short = 0
+        self.long_length = 0
+        self.short_length = 0
+
+
 class DrawData:
     def __init__(self, env, quads, line: Line):
         self._env = env
@@ -131,6 +139,8 @@ class Environment:
 
         self._action_space = spaces.Discrete(3)
         self._observation_space = Box(0.0, 1.0, [42, 42, 1])
+
+        self._info = Info()
 
     @property
     def observation_space(self):
@@ -239,6 +249,7 @@ class Environment:
         return self._setup()
 
     def _setup(self):
+        self._info = Info()
         self._tr = 0.0
         self._dd = None
         self._prev_px = None
@@ -305,6 +316,7 @@ class Environment:
                 r += pl / factor
         # handle position
         if a == Action.BUY and self._state != State.LONG:
+            self._info.long += 1
             self._ent_px = last_px
             self._ent_time = self._current_time
             self._state = State.LONG
@@ -313,6 +325,7 @@ class Environment:
                 factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
                 r += (-1. if self._state == State.FLAT else -2.) * get_config().costs / factor
         elif a == Action.SELL and self._state != State.SHORT:
+            self._info.short += 1
             self._ent_px = last_px
             self._ent_time = self._current_time
             self._state = State.SHORT
@@ -328,6 +341,10 @@ class Environment:
             if get_config().reward_type == RewardType.URPL and self._state != State.FLAT:
                 factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
                 r += -get_config().costs / factor
+        elif a == Action.BUY and self._state == State.LONG:
+            self._info.long_length += 1
+        elif a == Action.SELL and self._state == State.SHORT:
+            self._info.short_length += 1
 
         if get_config().reward_type == RewardType.URPL:
             if self._state == State.LONG:
@@ -372,7 +389,7 @@ class Environment:
                 r = self._tr
             else:
                 r = 0.
-        return self._get_state(), r, d, None
+        return self._get_state(), r, d, self._info
 
     def stop(self):
         get_ui_thread().stop_env(self)
