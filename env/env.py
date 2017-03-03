@@ -389,7 +389,7 @@ class Environment:
                 r = self._tr
             else:
                 r = 0.
-        return self._get_state(), r * 100.0, d, self._info
+        return self._get_state(), r * 1000.0, d, self._info
 
     def stop(self):
         get_ui_thread().stop_env(self)
