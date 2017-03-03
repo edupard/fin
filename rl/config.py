@@ -3,7 +3,7 @@ class Config(object):
     gamma = 0.0
     buffer_length = 100
     learning_rate = 0.0001
-    enthropy_weight = 0.01
+    enthropy_weight = 1.0
 
 _config = Config()
 
