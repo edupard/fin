@@ -49,7 +49,7 @@ class Config(object):
     rolling_px_range_factor = 0.9
 
     # RL parameters
-    reward_type = RewardType.TPL
+    reward_type = RewardType.URPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
     costs = 0.00
