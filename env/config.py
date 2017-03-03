@@ -52,7 +52,7 @@ class Config(object):
     reward_type = RewardType.URPL
     reward_algo = RewardAlgo.CCY
     # slippage + commission
-    costs = 0.00
+    costs = 0.03
 
     rand_start = True
 
