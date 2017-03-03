@@ -1,8 +1,9 @@
 import gym
 from PIL import Image
 
-env = gym.make("SpaceInvaders-v0")
+# env = gym.make("SpaceInvaders-v0")
 # env = gym.make("Pong-v0")
+env = gym.make("Breakout-v0")
 
 ACTIONS = env.action_space.n
 ROLLOUT_TIME = 1000
