@@ -50,7 +50,7 @@ class Config(object):
 
     # RL parameters
     reward_type = RewardType.URPL
-    reward_algo = RewardAlgo.PCT
+    reward_algo = RewardAlgo.CCY
     # slippage + commission
     costs = 0.00
 
