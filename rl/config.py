@@ -2,7 +2,7 @@ import numpy as np
 
 class Config(object):
     _lambda = 1.0
-    gamma = 0.85
+    gamma = 1.0 #0.85
     buffer_length = 100
     fwd_buffer_length = 100
     learning_rate = 0.0001
