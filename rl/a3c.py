@@ -32,6 +32,11 @@ given a rollout, compute its returns and the advantage
     batch_adv = discount(delta_t, gamma * lambda_)
 
     features = rollout.features[0]
+
+    batch_si = batch_si[:get_config().buffer_length,]
+    batch_a = batch_a[:get_config().buffer_length, ]
+    batch_adv = batch_adv[:get_config().buffer_length, ]
+    batch_r = batch_r[:get_config().buffer_length, ]
     return Batch(batch_si, batch_a, batch_adv, batch_r, rollout.terminal, features)
 
 
@@ -52,6 +57,7 @@ once it has processed enough steps.
         self.r = 0.0
         self.terminal = False
         self.features = []
+        self.len = 0
 
     def add(self, state, action, reward, value, terminal, features):
         self.states += [state]
@@ -60,19 +66,10 @@ once it has processed enough steps.
         self.values += [value]
         self.terminal = terminal
         self.features += [features]
+        self.len += 1
 
-    def extend(self, other):
-        assert not self.terminal
-        self.states.extend(other.states)
-        self.actions.extend(other.actions)
-        self.rewards.extend(other.rewards)
-        self.values.extend(other.values)
-        self.r = other.r
-        self.terminal = other.terminal
-        self.features.extend(other.features)
-
-
-
+    def is_ready(self):
+        return self.len == (get_config().buffer_length + get_config().fwd_buffer_length)
 
 class A3C(object):
     def __init__(self, env, task, summary_writer, visualise):
@@ -156,10 +153,10 @@ should be computed.
         last_features = self.local_network.get_initial_features()
         length = 0
         rewards = 0
+        pending_rollouts = []
 
         while True:
-            terminal_end = False
-            rollout = PartialRollout()
+            pending_rollouts.append(PartialRollout())
 
             for _ in range(get_config().buffer_length):
                 fetched = self.local_network.act(last_state, *last_features)
@@ -171,15 +168,21 @@ should be computed.
                     self.env.render()
 
                 # collect the experience
-                rollout.add(last_state, action, reward, value_, terminal, last_features)
+                for rollout in pending_rollouts:
+                    rollout.add(last_state, action, reward, value_, terminal, last_features)
                 length += 1
                 rewards += reward
 
                 last_state = state
                 last_features = features
 
+                if pending_rollouts[0].is_ready():
+                    rollout = pending_rollouts.pop(0)
+                    if not terminal:
+                        rollout.r = self.local_network.value(last_state, *last_features)
+                        yield rollout
+
                 if terminal:
-                    terminal_end = True
                     last_state = self.env.reset()
                     last_features = self.local_network.get_initial_features()
 
@@ -204,13 +207,12 @@ should be computed.
                     self.summary_writer.flush()
                     length = 0
                     rewards = 0
+                    pending_rollouts.clear()
                     break
 
-            if not terminal_end:
-                rollout.r = self.local_network.value(last_state, *last_features)
 
-            # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
-            yield rollout
+
+                    # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
 
     def process(self, sess):
         """
