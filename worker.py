@@ -25,7 +25,11 @@ class FastSaver(tf.train.Saver):
 def run(args, server):
     startup()
     env = create_env()
-    trainer = A3C(env, args.task, args.visualise)
+
+    logdir = os.path.join(get_config().log_dir, 'train')
+    summary_writer = tf.summary.FileWriter(logdir + "_%d" % args.task)
+
+    trainer = A3C(env, args.task, summary_writer, args.visualise)
 
     # Variable names that start with "local" are not saved in checkpoints.
     variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
@@ -43,9 +47,6 @@ def run(args, server):
         ses.run(init_all_op)
 
     config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(args.task)])
-    logdir = os.path.join(get_config().log_dir, 'train')
-
-    summary_writer = tf.summary.FileWriter(logdir + "_%d" % args.task)
 
     logger.info("Events directory: %s_%s", logdir, args.task)
     sv = tf.train.Supervisor(is_chief=(args.task == 0),
@@ -67,7 +68,6 @@ def run(args, server):
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
     with sv.managed_session(server.target, config=config) as sess, sess.as_default():
         sess.run(trainer.sync)
-        trainer.start(sess, summary_writer)
         global_step = sess.run(trainer.global_step)
         logger.info("Starting training at step=%d", global_step)
         while not sv.should_stop() and (not num_global_steps or global_step < num_global_steps):

@@ -72,120 +72,10 @@ once it has processed enough steps.
         self.features.extend(other.features)
 
 
-class RunnerThread(threading.Thread):
-    """
-One of the key distinctions between a normal environment and a universe environment
-is that a universe environment is _real time_.  This means that there should be a thread
-that would constantly interact with the environment and tell it what to do.  This thread is here.
-"""
-
-    def __init__(self, env, policy, num_local_steps, visualise):
-        threading.Thread.__init__(self)
-        self.queue = queue.Queue(5)
-        self.num_local_steps = num_local_steps
-        self.env = env
-        self.last_features = None
-        self.policy = policy
-        self.daemon = True
-        self.sess = None
-        self.summary_writer = None
-        self.visualise = visualise
-
-    def start_runner(self, sess, summary_writer):
-        self.sess = sess
-        self.summary_writer = summary_writer
-        self.start()
-
-    def run(self):
-        with self.sess.as_default():
-            self._run()
-
-    def _run(self):
-        rollout_provider = env_runner(self.env, self.policy, self.num_local_steps, self.summary_writer, self.visualise)
-        while True:
-            # the timeout variable exists because apparently, if one worker dies, the other workers
-            # won't die with it, unless the timeout is set to some large number.  This is an empirical
-            # observation.
-
-            self.queue.put(next(rollout_provider), timeout=600.0)
-
-
-def env_runner(env, policy, num_local_steps, summary_writer, render):
-    """
-The logic of the thread runner.  In brief, it constantly keeps on running
-the policy, and as long as the rollout exceeds a certain length, the thread
-runner appends the policy to the queue.
-"""
-    last_state = env.reset()
-    last_features = policy.get_initial_features()
-    length = 0
-    rewards = 0
-
-    while True:
-        terminal_end = False
-        rollout = PartialRollout()
-
-        for _ in range(num_local_steps):
-            fetched = policy.act(last_state, *last_features)
-            action, value_, features = fetched[0], fetched[1], fetched[2:]
-            # argmax to convert from one-hot
-            a = action.argmax()
-            state, reward, terminal, info = env.step(a)
-            if render:
-                env.render()
-
-            # collect the experience
-            rollout.add(last_state, action, reward, value_, terminal, last_features)
-            length += 1
-            rewards += reward
-
-            last_state = state
-            last_features = features
-
-            # if info:
-            #     summary = tf.Summary()
-            #     for k, v in info.items():
-            #         summary.value.add(tag=k, simple_value=float(v))
-            #     summary_writer.add_summary(summary, policy.global_step.eval())
-            #     summary_writer.flush()
-
-            if terminal:
-                terminal_end = True
-                last_state = env.reset()
-                last_features = policy.get_initial_features()
-
-                print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
-                if get_main_config().environment == EnvironmentType.FIN:
-                    print('Positions: {} long deals: {} length: {} short deals: {} length: {}'.format(
-                        info.long + info.short,
-                        info.long,
-                        info.long_length,
-                        info.short,
-                        info.short_length))
-                summary = tf.Summary()
-                summary.value.add(tag='Total reward', simple_value=float(rewards))
-                summary.value.add(tag='Round length', simple_value=float(length))
-                if get_main_config().environment == EnvironmentType.FIN:
-                    summary.value.add(tag='Long deals', simple_value=float(info.long))
-                    summary.value.add(tag='Long length', simple_value=float(info.long_length))
-                    summary.value.add(tag='Short deals', simple_value=float(info.short))
-                    summary.value.add(tag='Short length', simple_value=float(info.short_length))
-                    summary.value.add(tag='Positions', simple_value=float(info.long + info.short))
-                summary_writer.add_summary(summary, policy.global_step.eval())
-                summary_writer.flush()
-                length = 0
-                rewards = 0
-                break
-
-        if not terminal_end:
-            rollout.r = policy.value(last_state, *last_features)
-
-        # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
-        yield rollout
 
 
 class A3C(object):
-    def __init__(self, env, task, visualise):
+    def __init__(self, env, task, summary_writer, visualise):
         """
 An implementation of the A3C algorithm that is reasonably well-tuned for the VNC environments.
 Below, we will have a modest amount of complexity due to the way TensorFlow handles data parallelism.
@@ -195,6 +85,9 @@ should be computed.
 
         self.env = env
         self.task = task
+        self.summary_writer = summary_writer
+        self.visualise = visualise
+
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
@@ -227,13 +120,7 @@ should be computed.
             bs = tf.to_float(tf.shape(pi.x)[0])
             self.loss = pi_loss + 0.5 * vf_loss - entropy * get_config().enthropy_weight
 
-            # 20 represents the number of "local steps":  the number of timesteps
-            # we run the policy before we update the parameters.
-            # The larger local steps is, the lower is the variance in our policy gradients estimate
-            # on the one hand;  but on the other hand, we get less frequent parameter updates, which
-            # slows down learning.  In this code, we found that making local steps be much
-            # smaller than 20 makes the algorithm more difficult to tune and to get to work.
-            self.runner = RunnerThread(env, pi, get_config().buffer_length, visualise)
+            self.rg = self.rollout_generator()
 
             grads = tf.gradients(self.loss, pi.var_list)
 
@@ -257,24 +144,73 @@ should be computed.
             # each worker has a different set of adam optimizer parameters
             opt = tf.train.AdamOptimizer(get_config().learning_rate)
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
-            self.summary_writer = None
             self.local_steps = 0
 
-    def start(self, sess, summary_writer):
-        self.runner.start_runner(sess, summary_writer)
-        self.summary_writer = summary_writer
-
-    def pull_batch_from_queue(self):
+    def rollout_generator(self):
         """
-self explanatory:  take a rollout from the queue of the thread runner.
-"""
-        rollout = self.runner.queue.get(timeout=600.0)
-        while not rollout.terminal:
-            try:
-                rollout.extend(self.runner.queue.get_nowait())
-            except queue.Empty:
-                break
-        return rollout
+    The logic of the thread runner.  In brief, it constantly keeps on running
+    the policy, and as long as the rollout exceeds a certain length, the thread
+    runner appends the policy to the queue.
+    """
+        last_state = self.env.reset()
+        last_features = self.local_network.get_initial_features()
+        length = 0
+        rewards = 0
+
+        while True:
+            terminal_end = False
+            rollout = PartialRollout()
+
+            for _ in range(get_config().buffer_length):
+                fetched = self.local_network.act(last_state, *last_features)
+                action, value_, features = fetched[0], fetched[1], fetched[2:]
+                # argmax to convert from one-hot
+                a = action.argmax()
+                state, reward, terminal, info = self.env.step(a)
+                if self.visualise:
+                    self.env.render()
+
+                # collect the experience
+                rollout.add(last_state, action, reward, value_, terminal, last_features)
+                length += 1
+                rewards += reward
+
+                last_state = state
+                last_features = features
+
+                if terminal:
+                    terminal_end = True
+                    last_state = self.env.reset()
+                    last_features = self.local_network.get_initial_features()
+
+                    print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
+                    if get_main_config().environment == EnvironmentType.FIN:
+                        print('Positions: {} long deals: {} length: {} short deals: {} length: {}'.format(
+                            info.long + info.short,
+                            info.long,
+                            info.long_length,
+                            info.short,
+                            info.short_length))
+                    summary = tf.Summary()
+                    summary.value.add(tag='Total reward', simple_value=float(rewards))
+                    summary.value.add(tag='Round length', simple_value=float(length))
+                    if get_main_config().environment == EnvironmentType.FIN:
+                        summary.value.add(tag='Long deals', simple_value=float(info.long))
+                        summary.value.add(tag='Long length', simple_value=float(info.long_length))
+                        summary.value.add(tag='Short deals', simple_value=float(info.short))
+                        summary.value.add(tag='Short length', simple_value=float(info.short_length))
+                        summary.value.add(tag='Positions', simple_value=float(info.long + info.short))
+                    self.summary_writer.add_summary(summary, self.local_network.global_step.eval())
+                    self.summary_writer.flush()
+                    length = 0
+                    rewards = 0
+                    break
+
+            if not terminal_end:
+                rollout.r = self.local_network.value(last_state, *last_features)
+
+            # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
+            yield rollout
 
     def process(self, sess):
         """
@@ -284,7 +220,7 @@ server.
 """
 
         sess.run(self.sync)  # copy weights from shared to local
-        rollout = self.pull_batch_from_queue()
+        rollout = next(self.rg)
         batch = process_rollout(rollout, gamma=get_config().gamma, lambda_=get_config()._lambda)
 
         should_compute_summary = self.task == 0 and self.local_steps % 11 == 0
