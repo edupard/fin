@@ -11,6 +11,14 @@ from rl.config import get_config
 from config import EnvironmentType, get_config as get_main_config
 
 
+def discount_gamma(x):
+    return scipy.signal.lfilter(get_config().b_gamma, [1], x[::-1], axis=0)[::-1]
+
+
+def discount_gamma_lambda(x):
+    return scipy.signal.lfilter(get_config().b_gamma_lambda, [1], x[::-1], axis=0)[::-1]
+
+
 def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 
@@ -25,11 +33,13 @@ given a rollout, compute its returns and the advantage
     vpred_t = np.asarray(rollout.values + [rollout.r])
 
     rewards_plus_v = np.asarray(rollout.rewards + [rollout.r])
-    batch_r = discount(rewards_plus_v, gamma)[:-1]
+    batch_r = discount_gamma(rewards_plus_v)[:-1]
+    # batch_r = discount(rewards_plus_v, gamma)[:-1]
     delta_t = rewards + gamma * vpred_t[1:] - vpred_t[:-1]
     # this formula for the advantage comes "Generalized Advantage Estimation":
     # https://arxiv.org/abs/1506.02438
-    batch_adv = discount(delta_t, gamma * lambda_)
+    batch_adv = discount_gamma_lambda(delta_t)
+    # batch_adv = discount(delta_t, gamma * lambda_)
 
     features = rollout.features[0]
 
