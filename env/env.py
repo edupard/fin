@@ -14,12 +14,12 @@ from env.config import get_config, RenderingBackend, RewardType, RewardAlgo
 from env.action import Action, convert_to_action
 
 
-def _process_frame42(frame):
-    frame = frame.reshape((42, 42, 3))
+def _process_frame(frame):
+    frame = frame.reshape((get_config().window_px_width, get_config().window_px_height, 3))
     frame = frame.mean(2)
     frame = frame.astype(np.float32)
     frame *= (1.0 / 255.0)
-    frame = np.reshape(frame, [42, 42, 1])
+    frame = np.reshape(frame, [get_config().window_px_width, get_config().window_px_height, 1])
     return frame
 
 
@@ -286,7 +286,7 @@ class Environment:
         get_ui_thread().grab_data(self)
         arr = self._data_queue.get()
 
-        return _process_frame42(arr)
+        return _process_frame(arr)
 
     def step(self, action: int):
         d = False
