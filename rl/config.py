@@ -6,7 +6,8 @@ class Config(object):
     buffer_length = 20
     fwd_buffer_length = 20
     learning_rate = 0.0001
-    enthropy_weight = 0.001#0.01
+    enthropy_weight = 0.01#0.01
+    num_conv_layers = 6
 
     def __init__(self):
         self.b_gamma = np.zeros((self.fwd_buffer_length))

@@ -27,8 +27,8 @@ class Config(object):
     rendering_backend = RenderingBackend.SOFTWARE
     threading_model = ThreadingModel.ST
     # screen resolution
-    window_px_width = 42
-    window_px_height = 42
+    window_px_width = 160#42
+    window_px_height = 160#42
     # episode length
     # episode_length = 100
     episode_length = 24 * 28 * 60 //  get_data_config().bar_min

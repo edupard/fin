@@ -2,6 +2,9 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 
+from rl.config import get_config
+from config import get_config as get_general_config, EnvironmentType
+
 def normalized_columns_initializer(std=1.0):
     def _initializer(shape, dtype=None, partition_info=None):
         out = np.random.randn(*shape).astype(np.float32)
@@ -46,7 +49,10 @@ class LSTMPolicy(object):
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
 
-        for i in range(4):
+        n_l = 4
+        if get_general_config().environment == EnvironmentType.FIN:
+            n_l = get_config().num_conv_layers
+        for i in range(n_l):
             x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
         # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
         x = tf.expand_dims(flatten(x), [0])

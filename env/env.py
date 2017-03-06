@@ -138,7 +138,7 @@ class Environment:
         self._initialized = False
 
         self._action_space = spaces.Discrete(3)
-        self._observation_space = Box(0.0, 1.0, [42, 42, 1])
+        self._observation_space = Box(0.0, 1.0, [get_config().window_px_width, get_config().window_px_height, 1])
 
         self._info = Info()
 
