@@ -1,5 +1,6 @@
 /data/preprocessed/*
 !/data/preprocessed/SIN_30m
+!/data/preprocessed/RSIN_30m
 .idea
 /models
 /eq

@@ -6,7 +6,9 @@ class Config(object):
     # ticker = 'QO'
     # ticker = 'TREND'
     # ticker = 'FLAT'
-    ticker = 'SIN'
+    # ticker = 'SIN'
+    # ticker = 'RW'
+    ticker = 'RSIN'
     bar_min = 30
     switch_off_zero_bars = True
 
