@@ -144,7 +144,7 @@ should be computed.
             tf.summary.scalar("model/var_global_norm", tf.global_norm(pi.var_list))
             self.summary_op = tf.summary.merge_all()
 
-            grads, _ = tf.clip_by_global_norm(grads, 40.0)
+            grads, _ = tf.clip_by_global_norm(grads, get_config().max_grad_norm)
 
             # copy weights from the parameter server to the local model
             self.sync = tf.group(*[v1.assign(v2) for v1, v2 in zip(pi.var_list, self.network.var_list)])
