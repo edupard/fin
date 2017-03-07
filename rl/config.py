@@ -9,7 +9,7 @@ class Config(object):
     learning_rate = 0.0001
     enthropy_weight = 0.01#0.01
     num_conv_layers = 6
-    max_grad_norm = 1000.0
+    max_grad_norm = 40.0
 
     def __init__(self):
         self.b_gamma = np.zeros((self.fwd_buffer_length))
