@@ -1,11 +1,11 @@
 import numpy as np
 
 class Config(object):
-    algo_modification = False
+    algo_modification = True
     _lambda = 1.0
-    gamma = 0.85
-    buffer_length = 50
-    fwd_buffer_length = 50 if algo_modification else 0
+    gamma = 1.0
+    buffer_length = 300
+    fwd_buffer_length = 300 if algo_modification else 0
     learning_rate = 0.0001
     enthropy_weight = 0.01#0.01
     num_conv_layers = 6
