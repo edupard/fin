@@ -1,7 +1,7 @@
 import numpy as np
 
 class Config(object):
-    algo_modification = True
+    algo_modification = False
     _lambda = 1.0
     gamma = 0.85
     buffer_length = 50
