@@ -3,12 +3,7 @@ from enum import Enum
 
 class Config(object):
     # fin environment
-    # ticker = 'QO'
-    # ticker = 'TREND'
-    # ticker = 'FLAT'
-    # ticker = 'SIN'
-    # ticker = 'RW'
-    ticker = 'RSIN'
+    ticker = 'EXP'
     bar_min = 30
     switch_off_zero_bars = True
 
