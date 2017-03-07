@@ -5,80 +5,97 @@ import math
 import csv
 import shutil
 
-from rl_fin.config import get_config
+from data_source.data_reader import get_config, get_paths
+from env.config import get_config as get_env_config
 from rl_fin.data_reader import register_csv_dialect
 
-# col_raw_open
-# col_raw_close
-# col_raw_high
-# col_raw_low
-# col_raw_volume
-# col_raw_last_close
+data_len = 2 * 365 * 24 * 60
+start_px = 50.0
 
-l = 1068481
-px = 50.0
-sin_amplitude = 1.0
-std_factor = 0.001
+# rolling factor explained:
+# if factor close to zero -> we don't tend to change sin amplitude -> more enthropy, hard to play
+# if factor close to one -> we link sin amplitude to current px -> less enthropy, easy to play
 
-def generate_flat():
-    return np.ones((l, 6)) * px
+# easy : plain sin
+# expectation = 0.0
+# volatility = 0.0
+# sin_amplitude_pct = 0.1
+# rolling_factor = 0.0
+
+# easy : modern vol, sin amplitude correlated to current price
+# expectation = 0.0
+# volatility = 35.0
+# sin_amplitude_pct = 0.1
+# rolling_factor = 1.0
+
+# easy ? (theoretically solution exists, but pl is not super stable) : big trend, low vol, no sin component
+# expectation = 100.0
+# volatility = 5.0
+# sin_amplitude_pct = 0.00
+# rolling_factor = 1.0
+
+# easy ? (flat is theoretical solution if comission cost is non zero, but price fluctuate around zero) - low volatility, no sin component
+# expectation = 0.0
+# volatility = 10.0
+# sin_amplitude_pct = 0.0
+# rolling_factor = 1.0
+
+# medium : modern vol, sin amplitude correlated to current price, but low
+# expectation = 0.0
+# volatility = 35.0
+# sin_amplitude_pct = 0.01
+# rolling_factor = 1.0
+
+# medium + : modern vol, sin amplitude correlated to current price slowly and low
+# expectation = 0.0
+# volatility = 35.0
+# sin_amplitude_pct = 0.01
+# rolling_factor = 0.01
+
+# medium ? (theoretically solution exists, but pl is not stable) : big trend, modern vol, no sin component
+# expectation = 100.0
+# volatility = 35.0
+# sin_amplitude_pct = 0.00
+# rolling_factor = 1.0
+
+# hard - high volatility, no sin component
+# expectation = 100.0
+# volatility = 70.0
+# sin_amplitude_pct = 0.0
+# rolling_factor = 1.0
+
+# hard - solutions is not stable if no comission, - modern volatility, no sin component
+expectation = 0.0
+volatility = 35.0
+sin_amplitude_pct = 0.0
+rolling_factor = 1.0
 
 
-def generate_trend():
-    data = np.ones((l, 6))
-    p = px
-    for idx in range(l):
-        data[idx, 5] = p
-        p = p + 0.01
-        data[idx, 0] = p
-        data[idx, 1] = p
-        data[idx, 2] = p
-        data[idx, 3] = p
-    return data
+# log normal distribution parameters calculation
+mu = 1.0 + expectation / 100.0
+std = volatility / 100.0
+
+mu_square = math.pow(mu, 2)
+var = math.pow(std, 2)
+ln_var = math.log(1 + var / mu_square)
+ln_mu = math.log(mu) - ln_var / 2
+ln_std = math.sqrt(ln_var)
+
+ln_mu /= (data_len - 1)
+ln_std /= math.sqrt(data_len - 1)
 
 
-def generate_sin():
-    data = np.ones((l, 6))
-    p = px
-    for idx in range(l):
-        data[idx, 5] = p
-        min_w = get_config().ww * get_config().bar_min
-        i = idx % min_w
-        p = px + sin_amplitude * math.sin(2. * math.pi * i / (min_w - 1))
-        data[idx, 0] = p
-        data[idx, 1] = p
-        data[idx, 2] = p
-        data[idx, 3] = p
-    return data
-
-
-def generate_random_walk():
-    data = np.ones((l, 6))
-    p = px
-    for idx in range(l):
-        data[idx, 5] = p
-        r = np.random.normal(0, std_factor)
-        p = p * math.exp(r)
-        data[idx, 0] = p
-        data[idx, 1] = p
-        data[idx, 2] = p
-        data[idx, 3] = p
-    return data
-
-def generate_random_sin():
-    data = np.ones((l, 6))
-    p = p_combined = px
-    for idx in range(l):
+def generate_data():
+    data = np.ones((data_len, 6))
+    p = p_combined = start_px
+    sin_amplitude = start_px * sin_amplitude_pct
+    for idx in range(data_len):
         data[idx, 5] = p_combined
-
-        min_w = get_config().ww * get_config().bar_min
+        sin_amplitude += (p * sin_amplitude_pct - sin_amplitude) * rolling_factor
+        r = np.random.lognormal(ln_mu, ln_std)
+        p *= r
+        min_w = get_env_config().ww * get_config().bar_min
         i = idx % min_w
-        # easier to play when you link sin amplitude to current price, may be some EMA
-        sin_amplitude = p * 0.1
-        # if i == 0:
-        #     sin_amplitude = p * 0.1
-        r = np.random.normal(0, std_factor)
-        p = p * math.exp(r)
         sin_component = sin_amplitude * math.sin(2. * math.pi * i / (min_w - 1))
         p_combined = p + sin_component
         data[idx, 0] = p_combined
@@ -87,17 +104,22 @@ def generate_random_sin():
         data[idx, 3] = p_combined
     return data
 
-shutil.rmtree('./data/preprocessed/RSIN_30m', ignore_errors=True)
+DATA_FOLDER_PATH, DATA_FILE_PATH = get_paths()
 
+print('Folder {} removed'.format(DATA_FOLDER_PATH) )
+shutil.rmtree(DATA_FOLDER_PATH, ignore_errors=True)
+
+print('Generating data...')
+data = generate_data()
+
+data_file_path = './data/{}_20141116_000000.csv'.format(get_config().ticker)
+print('Writing data to {}...'.format(data_file_path))
 register_csv_dialect()
-data = generate_random_sin()
-
-with open('./data/RSIN_20141116_000000.csv', 'w') as f:
+with open(data_file_path, 'w') as f:
     writer = csv.writer(f, dialect='data')
     for idx in range(0, data.shape[0]):
         row = data[idx, :]
         writer.writerow(row)
 
 from play import main as play_game
-
 play_game()

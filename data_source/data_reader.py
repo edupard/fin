@@ -6,6 +6,14 @@ import math
 import csv
 from data_source.config import get_config
 
+
+def get_paths():
+    PREPROCESSED_FOLDER_PATH = './data/preprocessed'
+    DATA_FOLDER_PATH = PREPROCESSED_FOLDER_PATH + '/{}_{}m'.format(get_config().ticker, get_config().bar_min)
+    DATA_FILE_PATH = DATA_FOLDER_PATH + '/data.csv'
+    return DATA_FOLDER_PATH, DATA_FILE_PATH
+
+
 def register_csv_dialect():
     csv.register_dialect(
         'data',
@@ -25,8 +33,7 @@ class DataReader(object):
         PREPROCESSED_FOLDER_PATH = './data/preprocessed'
         if not os.path.exists(PREPROCESSED_FOLDER_PATH):
             os.makedirs(PREPROCESSED_FOLDER_PATH)
-        self._DATA_FOLDER_PATH = PREPROCESSED_FOLDER_PATH + '/{}_{}m'.format(get_config().ticker, get_config().bar_min)
-        self._DATA_FILE_PATH = self._DATA_FOLDER_PATH + '/data.csv'
+        self._DATA_FOLDER_PATH, self._DATA_FILE_PATH = get_paths()
 
     def _calc_start_time(self):
         files = fnmatch.filter(os.listdir('./data'), '*.csv')
