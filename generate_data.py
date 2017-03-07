@@ -17,16 +17,16 @@ start_px = 50.0
 # if factor close to one -> we link sin amplitude to current px -> less enthropy, easy to play
 
 # easy : plain sin
-expectation = 0.0
-volatility = 0.0
-sin_amplitude_pct = 0.1
-rolling_factor = 0.0
+# expectation = 0.0
+# volatility = 0.0
+# sin_amplitude_pct = 0.1
+# rolling_factor = 0.0
 
 # easy : modern vol, sin amplitude correlated to current price
-# expectation = 0.0
-# volatility = 35.0
-# sin_amplitude_pct = 0.1
-# rolling_factor = 1.0
+expectation = 0.0
+volatility = 35.0
+sin_amplitude_pct = 0.1
+rolling_factor = 1.0
 
 # easy ? (theoretically solution exists, but pl is not super stable) : big trend, low vol, no sin component
 # expectation = 100.0
