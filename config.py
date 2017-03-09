@@ -7,7 +7,8 @@ class EnvironmentType(Enum):
 
 class Config(object):
     environment = EnvironmentType.FIN
-    log_dir = './models/rsin'
+    log_dir = './models/qo'
+    # log_dir = './models/exp'
 
 _config = Config()
 
