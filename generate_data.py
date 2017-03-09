@@ -31,17 +31,17 @@ start_px = 50.0
 # rolling_factor = 1.0
 
 # done 150K - commission is obvious local minimum
-# easy: flat is solution if comission cost is non zero - low volatility, no sin component
-expectation = 0.0
-volatility = 35.0
-sin_amplitude_pct = 0.0
-rolling_factor = 1.0
+# hard: flat is solution if comission cost is non zero - modern volatility, no sin component
+# expectation = 0.0
+# volatility = 35.0
+# sin_amplitude_pct = 0.0
+# rolling_factor = 1.0
 
 # easy ? (theoretically solution exists, but pl is not super stable) : big trend, low vol, no sin component
-# expectation = 100.0
-# volatility = 5.0
-# sin_amplitude_pct = 0.00
-# rolling_factor = 1.0
+expectation = 100.0
+volatility = 35.0
+sin_amplitude_pct = 0.00
+rolling_factor = 1.0
 
 # medium : modern vol, sin amplitude correlated to current price, but low
 # expectation = 0.0
