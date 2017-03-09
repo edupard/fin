@@ -53,18 +53,19 @@ start_px = 50.0
 # rolling_factor = 1.0
 
 # ~234
+# + 150K
 # easy : low vol, sin amplitude correlated to current price, but low
-expectation = 0.0
-volatility = 35.0
-sin_amplitude_pct = 0.05
-rolling_factor = 1.0
-
-
-# medium + : modern vol, sin amplitude correlated to current price slowly and low
 # expectation = 0.0
 # volatility = 35.0
-# sin_amplitude_pct = 0.01
-# rolling_factor = 0.01
+# sin_amplitude_pct = 0.05
+# rolling_factor = 1.0
+
+
+# hard : modern vol, sin amplitude correlated to current price slowly and low
+expectation = 0.0
+volatility = 35.0
+sin_amplitude_pct = 0.01
+rolling_factor = 0.01
 
 # log normal distribution parameters calculation
 mu = 1.0 + expectation / 100.0
