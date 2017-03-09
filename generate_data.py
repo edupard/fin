@@ -16,63 +16,45 @@ start_px = 50.0
 # if factor close to zero -> we don't tend to change sin amplitude -> more enthropy, hard to play
 # if factor close to one -> we link sin amplitude to current px -> less enthropy, easy to play
 
-# done 150K
+# + 150K
 # easy : plain sin
 # expectation = 0.0
 # volatility = 0.0
 # sin_amplitude_pct = 0.1
 # rolling_factor = 0.0
 
-# done 150K
+# + 150K
 # easy : modern vol, sin amplitude correlated to current price
 # expectation = 0.0
 # volatility = 35.0
 # sin_amplitude_pct = 0.1
 # rolling_factor = 1.0
 
-# done 150K - commission is obvious local minimum
-# hard: flat is solution if comission cost is non zero - modern volatility, no sin component
+# +- 150K - flat, but sometimes switch to long or short
+# easy: flat is solution if comission cost is non zero - modern volatility, no sin component
 # expectation = 0.0
 # volatility = 35.0
 # sin_amplitude_pct = 0.0
 # rolling_factor = 1.0
 
-# easy ? (theoretically solution exists, but pl is not super stable) : big trend, low vol, no sin component
-expectation = 100.0
-volatility = 35.0
-sin_amplitude_pct = 0.00
-rolling_factor = 1.0
+# - looks like it tend to long strategy, especially if vol is low or expectation is super high, but convergence is not stable and very slow
+# hard (theoretically solution exists, but pl is not super stable) : big trend, modern vol, no sin component
+# expectation = 100.0
+# volatility = 35.0
+# sin_amplitude_pct = 0.00
+# rolling_factor = 1.0
 
 # medium : modern vol, sin amplitude correlated to current price, but low
-# expectation = 0.0
-# volatility = 35.0
-# sin_amplitude_pct = 0.01
-# rolling_factor = 1.0
+expectation = 0.0
+volatility = 5.0
+sin_amplitude_pct = 0.01
+rolling_factor = 1.0
 
 # medium + : modern vol, sin amplitude correlated to current price slowly and low
 # expectation = 0.0
 # volatility = 35.0
 # sin_amplitude_pct = 0.01
 # rolling_factor = 0.01
-
-# medium ? (theoretically solution exists, but pl is not stable) : big trend, modern vol, no sin component
-# expectation = 100.0
-# volatility = 35.0
-# sin_amplitude_pct = 0.00
-# rolling_factor = 1.0
-
-# hard - high volatility, no sin component
-# expectation = 100.0
-# volatility = 70.0
-# sin_amplitude_pct = 0.0
-# rolling_factor = 1.0
-
-# hard - solutions is not stable if no comission, - modern volatility, no sin component
-# expectation = 0.0
-# volatility = 35.0
-# sin_amplitude_pct = 0.0
-# rolling_factor = 1.0
-
 
 # log normal distribution parameters calculation
 mu = 1.0 + expectation / 100.0
