@@ -39,10 +39,10 @@ start_px = 50.0
 
 # - looks like it tend to long strategy, especially if vol is low or expectation is super high, but convergence is not stable and very slow
 # hard (theoretically solution exists, but pl is not super stable) : big trend, modern vol, no sin component
-# expectation = 100.0
-# volatility = 35.0
-# sin_amplitude_pct = 0.00
-# rolling_factor = 1.0
+expectation = 0.0
+volatility = 35.0
+sin_amplitude_pct = 0.00
+rolling_factor = 1.0
 
 # ~48
 # + 600K
@@ -63,10 +63,10 @@ start_px = 50.0
 # ~20
 # + 2M reward ~50
 # hard : modern vol, sin amplitude correlated to current price slowly and low
-expectation = 0.0
-volatility = 35.0
-sin_amplitude_pct = 0.01
-rolling_factor = 0.01
+# expectation = 0.0
+# volatility = 35.0
+# sin_amplitude_pct = 0.01
+# rolling_factor = 0.01
 
 # log normal distribution parameters calculation
 mu = 1.0 + expectation / 100.0

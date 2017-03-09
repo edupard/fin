@@ -30,8 +30,8 @@ class Config(object):
     window_px_width = 160#42
     window_px_height = 160#42
     # episode length
-    # episode_length = 100
-    episode_length = 24 * 60 * 365 * 1.3 //  get_data_config().bar_min
+    episode_length = 3066
+    # episode_length = 24 * 60 * 365 * 1.4 //  get_data_config().bar_min
     # window width in bars
     ww = 100
     # bars per second
