@@ -44,11 +44,21 @@ start_px = 50.0
 # sin_amplitude_pct = 0.00
 # rolling_factor = 1.0
 
-# medium : modern vol, sin amplitude correlated to current price, but low
+# ~48
+# + 600K
+# easy : low vol, sin amplitude correlated to current price, but low
+# expectation = 0.0
+# volatility = 5.0
+# sin_amplitude_pct = 0.01
+# rolling_factor = 1.0
+
+# ~234
+# easy : low vol, sin amplitude correlated to current price, but low
 expectation = 0.0
-volatility = 5.0
-sin_amplitude_pct = 0.01
+volatility = 35.0
+sin_amplitude_pct = 0.05
 rolling_factor = 1.0
+
 
 # medium + : modern vol, sin amplitude correlated to current price slowly and low
 # expectation = 0.0
