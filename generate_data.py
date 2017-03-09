@@ -30,9 +30,10 @@ start_px = 50.0
 # sin_amplitude_pct = 0.1
 # rolling_factor = 1.0
 
-# easy ? (flat is theoretical solution if comission cost is non zero, but price fluctuate around zero) - low volatility, no sin component
+# done 150K - commission is obvious local minimum
+# easy: flat is solution if comission cost is non zero - low volatility, no sin component
 expectation = 0.0
-volatility = 10.0
+volatility = 35.0
 sin_amplitude_pct = 0.0
 rolling_factor = 1.0
 
