@@ -1,6 +1,6 @@
 from data_source.data_reader import DataReader, register_csv_dialect
 
-print('Loading data...')
+print('Loading data')
 register_csv_dialect()
 dr = DataReader()
 dr.read_data()

@@ -43,6 +43,7 @@ class DataReader(object):
             break
 
     def _preprocess_data(self) -> None:
+        print('Preprocessing data...')
         files = fnmatch.filter(os.listdir('./data'), '*.csv')
         raw_data = None
         start_time = datetime.datetime.utcnow()
@@ -184,6 +185,7 @@ class DataReader(object):
         self._data = np.transpose(self._data, [1, 0])
 
     def _save_preprocessed_data(self):
+        print('Saving preprocessed data...')
         if not os.path.exists(self._DATA_FOLDER_PATH):
             os.makedirs(self._DATA_FOLDER_PATH)
 
@@ -194,6 +196,7 @@ class DataReader(object):
                 writer.writerow(row)
 
     def _restore_preprocessed_data(self):
+        print('Restoring preprocessed data...')
         self._data = np.genfromtxt(self._DATA_FILE_PATH, delimiter=',', dtype=np.float32)
 
     def read_data(self) -> None:

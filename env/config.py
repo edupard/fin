@@ -54,7 +54,9 @@ class Config(object):
     # slippage + commission
     costs = 0.00
 
-    rand_start = True
+    rand_start = False
+    start_seed = 0
+    play_length = None # set it to some value >= episode length
 
     draw_training_line = False
 

@@ -234,17 +234,15 @@ class Environment:
             get_ui_thread().start_env(self)
             self._initialized = True
 
-        if get_config().ww > self._data_length - get_config().episode_length:
+        dl = self._data_length if get_config().play_length is None else get_config().play_length + get_config().ww + 1
+
+        if dl - get_config().episode_length <= get_config().ww:
             raise "game length is too long"
 
-        self._ep_start_idx = get_config().ww
+        self._ep_start_idx = get_config().ww + get_config().start_seed
         if get_config().rand_start:
-            # TODO: check upper bound for start idx = self._data_length - get_config().episode_length - 2
-            # self._ep_start_idx = get_config().ww
             self._ep_start_idx = np.random.randint(get_config().ww,
-                                                   high=self._data_length - get_config().episode_length - 1)
-            # self._ep_start_idx = np.random.randint(get_config().ww,
-            #                                        high=self._data_length - 1)
+                                                   high=dl - get_config().episode_length)
         self._ep_end_idx = self._ep_start_idx + get_config().episode_length
         return self._setup()
 
@@ -292,13 +290,10 @@ class Environment:
         d = False
         r = 0.0
         self._current_time += get_config().bpf
-        last_data_idx = math.floor(self._current_time)
-        if self._current_time > self._end_time:
+        if self._current_time >= self._end_time:
             self._current_time = self._end_time
             d = True
-        # if last_data_idx >= self._data_length - 1:
-        #     last_data_idx = self._data_length - 1
-        #     d = True
+        last_data_idx = math.floor(self._current_time)
 
         a = convert_to_action(action)
 
