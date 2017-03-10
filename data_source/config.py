@@ -3,19 +3,19 @@ from enum import Enum
 
 
 class Config(object):
+    yahoo = False
     # fin environment
     # Coca cola
-    yahoo = True
-    start = '2000-01-01'
-    # end = '2000-12-31'
-    end = '2009-12-31'
-    ticker = 'KO'
-    bar_min = 24 * 60
+    # yahoo = True
+    # start = '2000-01-01'
+    # end = '2009-12-31'
+    # ticker = 'KO'
+    # bar_min = 24 * 60
     # Brent
-    # ticker = 'QO'
-    # bar_min = 60
-
+    ticker = 'QO'
+    bar_min = 60
     # Experiments
+    # yahoo = False
     # ticker = 'EXP'
     # bar_min = 30
 
