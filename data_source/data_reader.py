@@ -210,6 +210,7 @@ class DataReader(object):
 
 
     def _postprocess_data(self):
+        print('Postprocessing data...')
         if get_config().switch_off_zero_bars:
             cond = (self._data[:,2] > 0)
             self._data = self._data[cond]
