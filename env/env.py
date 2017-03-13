@@ -10,7 +10,7 @@ from gym.spaces.box import Box
 import cv2
 
 from data_source.data_source import get_datasource
-from env.config import get_config, RenderingBackend, RewardType, RewardAlgo
+from config import get_config, RenderingBackend, RewardType, RewardAlgo
 from env.action import Action, convert_to_action
 
 
@@ -58,6 +58,9 @@ class Info:
         self.short = 0
         self.long_length = 0
         self.short_length = 0
+
+        self.price = None
+        self.time = None
 
 
 class DrawData:
@@ -244,9 +247,7 @@ class Environment:
             self._ep_start_idx = np.random.randint(get_config().ww,
                                                    high=dl - get_config().episode_length)
         self._ep_end_idx = self._ep_start_idx + get_config().episode_length
-        return self._setup()
 
-    def _setup(self):
         self._info = Info()
         self._tr = 0.0
         self._dd = None
@@ -277,9 +278,6 @@ class Environment:
         self._draw()
         return self._get_state()
 
-    def rollback(self):
-        return self._setup()
-
     def _get_state(self):
         get_ui_thread().grab_data(self)
         arr = self._data_queue.get()
@@ -289,6 +287,11 @@ class Environment:
     def step(self, action: int):
         d = False
         r = 0.0
+
+        prev_data_idx = math.floor(self._current_time)
+        self._info.price = self._data[prev_data_idx][1]
+        self._info.time = self._data[prev_data_idx][0]
+
         self._current_time += get_config().bpf
         if self._current_time >= self._end_time:
             self._current_time = self._end_time
@@ -384,7 +387,7 @@ class Environment:
                 r = self._tr
             else:
                 r = 0.
-        return self._get_state(), r * 100.0, d, self._info
+        return self._get_state(), r * get_config().reward_scale_multiplier, d, self._info
 
     def stop(self):
         get_ui_thread().stop_env(self)

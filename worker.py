@@ -29,7 +29,7 @@ def run(args, server):
     logdir = os.path.join(get_config().log_dir, 'train')
     summary_writer = tf.summary.FileWriter(logdir + "_%d" % args.task)
 
-    trainer = A3C(env, args.task, summary_writer, args.visualise)
+    trainer = A3C(env, args.task, summary_writer, args.visualise, args.track)
 
     # Variable names that start with "local" are not saved in checkpoints.
     variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
@@ -61,22 +61,29 @@ def run(args, server):
                              save_model_secs=30,
                              save_summaries_secs=30)
 
-    num_global_steps = 100000000
-
     logger.info(
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
         "One common cause is that the parameter server DNS name isn't resolving yet, or is misspecified.")
     with sv.managed_session(server.target, config=config) as sess, sess.as_default():
         sess.run(trainer.sync)
         global_step = sess.run(trainer.global_step)
-        logger.info("Starting training at step=%d", global_step)
-        while not sv.should_stop() and (not num_global_steps or global_step < num_global_steps):
-            trainer.process(sess)
-            global_step = sess.run(trainer.global_step)
+        if args.track:
+            logger.info("Starting evaluation at step=%d", global_step)
+        else:
+            logger.info("Starting training at step=%d", global_step)
+        if args.track:
+            trainer.evaluate(sess)
+        else:
+            while not sv.should_stop() and global_step < get_config().num_global_steps:
+                trainer.process(sess)
+                global_step = sess.run(trainer.global_step)
 
     # Ask for all the services to stop.
     sv.stop()
-    logger.info('reached %s steps. worker stopped.', global_step)
+    if args.track:
+        logger.info('evaluation complete. worker stopped.')
+    else:
+        logger.info('reached %s steps. worker stopped.', global_step)
     stop_env(env)
     shutdown()
 
@@ -113,6 +120,7 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--job-name', default="worker", help='worker or ps')
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
     parser.add_argument('--visualise', action='store_true', help="Visualise")
+    parser.add_argument('--track', action='store_true', help="Track")
 
     args = parser.parse_args()
     spec = cluster_spec(args.num_workers, 1)

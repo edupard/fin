@@ -4,15 +4,11 @@ from datetime import datetime
 import os
 
 from env_factory import startup, shutdown, create_env, stop_env
-from config import get_config as get_env_config, EnvironmentType
-from data_source.config import get_config as get_data_config
+from config import get_config
 from data_source.data_source import get_datasource
-from env.config import get_config
 from env.buttons import get_buttons
 
 def main():
-    get_env_config().environment = EnvironmentType.FIN
-
     startup()
 
     env = create_env()
@@ -23,7 +19,7 @@ def main():
         now = datetime.now()
         s_now = now.strftime("%H%M%S")
         return 'eq/eq_bm_{}_sl_{:.3f}_w_{}_h_{}_bars_{}_hpct_{:.2f}_bps_{:.0f}_fps_{:.0f}_t_{}.png'.format(
-            get_data_config().bar_min,
+            get_config().bar_min,
             get_config().costs,
             get_config().window_px_width,
             get_config().window_px_height,
@@ -49,7 +45,7 @@ def main():
             env.render()
             s, r, d, i = env.step(get_buttons().action)
             frames_passed += 1
-            d_p = (frames_passed / get_config().fps) * get_config().bps * get_data_config().bar_min // (24 * 60)
+            d_p = (frames_passed / get_config().fps) * get_config().bps * get_config().bar_min // (24 * 60)
             if d_p != days_passed:
                 days_passed = d_p
                 print('{} days gone'.format(days_passed))

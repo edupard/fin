@@ -5,7 +5,7 @@ from PIL import Image
 import queue
 import pygame
 
-from env.config import get_config, ThreadingModel
+from config import get_config, ThreadingModel
 from env.env import DrawData, Line
 from env.buttons import get_buttons
 

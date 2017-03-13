@@ -1,14 +1,12 @@
-from __future__ import print_function
 from collections import namedtuple
 import numpy as np
 import tensorflow as tf
 from rl.model import LSTMPolicy
-import six.moves.queue as queue
 import scipy.signal
-import threading
+import csv
+import os
 
-from rl.config import get_config
-from config import EnvironmentType, get_config as get_main_config
+from config import EnvironmentType, get_config as get_config
 
 
 def discount_gamma(x):
@@ -47,7 +45,7 @@ given a rollout, compute its returns and the advantage
 
     features = rollout.features[0]
 
-    batch_si = batch_si[:get_config().buffer_length,]
+    batch_si = batch_si[:get_config().buffer_length, ]
     batch_a = batch_a[:get_config().buffer_length, ]
     batch_adv = batch_adv[:get_config().buffer_length, ]
     batch_r = batch_r[:get_config().buffer_length, ]
@@ -57,7 +55,7 @@ given a rollout, compute its returns and the advantage
 Batch = namedtuple("Batch", ["si", "a", "adv", "r", "terminal", "features"])
 
 
-class PartialRollout(object):
+class Rollout(object):
     """
 a piece of a complete rollout.  We run our agent, and process its experience
 once it has processed enough steps.
@@ -85,8 +83,9 @@ once it has processed enough steps.
     def is_ready(self):
         return self.len == (get_config().buffer_length + get_config().fwd_buffer_length)
 
+
 class A3C(object):
-    def __init__(self, env, task, summary_writer, visualise):
+    def __init__(self, env, task, summary_writer, visualise, track):
         """
 An implementation of the A3C algorithm that is reasonably well-tuned for the VNC environments.
 Below, we will have a modest amount of complexity due to the way TensorFlow handles data parallelism.
@@ -98,6 +97,7 @@ should be computed.
         self.task = task
         self.summary_writer = summary_writer
         self.visualise = visualise
+        self.track = track
 
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
@@ -170,11 +170,11 @@ should be computed.
         pending_rollouts = []
 
         while True:
-            pending_rollouts.append(PartialRollout())
+            pending_rollouts.append(Rollout())
 
             for _ in range(get_config().buffer_length):
                 fetched = self.local_network.act(last_state, *last_features)
-                action, value_, features = fetched[0], fetched[1], fetched[2:]
+                action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
                 # argmax to convert from one-hot
                 a = action.argmax()
                 state, reward, terminal, info = self.env.step(a)
@@ -201,7 +201,7 @@ should be computed.
                     last_features = self.local_network.get_initial_features()
 
                     print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
-                    if get_main_config().environment == EnvironmentType.FIN:
+                    if get_config().environment == EnvironmentType.FIN:
                         print('Positions: {} long deals: {} length: {} short deals: {} length: {}'.format(
                             info.long + info.short,
                             info.long,
@@ -211,7 +211,7 @@ should be computed.
                     summary = tf.Summary()
                     summary.value.add(tag='Total reward', simple_value=float(rewards))
                     summary.value.add(tag='Round length', simple_value=float(length))
-                    if get_main_config().environment == EnvironmentType.FIN:
+                    if get_config().environment == EnvironmentType.FIN:
                         summary.value.add(tag='Long deals', simple_value=float(info.long))
                         summary.value.add(tag='Long length', simple_value=float(info.long_length))
                         summary.value.add(tag='Short deals', simple_value=float(info.short))
@@ -223,20 +223,43 @@ should be computed.
                     rewards = 0
                     pending_rollouts.clear()
                     break
-
-
-
                     # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
 
-    def process(self, sess):
-        """
-process grabs a rollout that's been produced by the thread runner,
-and updates the parameters.  The update is then sent to the parameter
-server.
-"""
+    def evaluate(self, sess):
+        sess.run(self.sync)
+        if not os.path.exists('results'):
+            os.makedirs('results')
+        with open('results/{}.csv'.format(get_config().model), 'w') as f:
+            writer = csv.writer(f, dialect='data')
 
+            last_state = self.env.reset()
+            last_features = self.local_network.get_initial_features()
+
+            while True:
+                fetched = self.local_network.act(last_state, *last_features)
+                action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
+
+                a = action.argmax()
+                state, reward, terminal, info = self.env.step(a)
+                if self.visualise:
+                    self.env.render()
+
+                row = [info.time, info.price, reward, a]
+                row.extend(value_)
+                row.extend(action_distribution.reshape((-1)))
+                writer.writerow(row)
+
+                last_state = state
+                last_features = features
+
+                if terminal:
+                    break
+
+    def process(self, sess):
         sess.run(self.sync)  # copy weights from shared to local
+
         rollout = next(self.rg)
+
         batch = process_rollout(rollout)
 
         should_compute_summary = self.task == 0 and self.local_steps % 11 == 0

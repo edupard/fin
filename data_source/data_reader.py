@@ -1,4 +1,3 @@
-from rl_fin.config import Config
 import numpy as np
 import os, fnmatch
 import datetime
@@ -6,7 +5,7 @@ import math
 import csv
 from yahoo_finance import Share
 
-from data_source.config import get_config
+from config import get_config
 
 
 def get_paths():

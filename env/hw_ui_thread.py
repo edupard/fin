@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 import queue
 
-from env.config import get_config
+from config import get_config
 from env.env import DrawData, Line
 from env.buttons import get_buttons
 

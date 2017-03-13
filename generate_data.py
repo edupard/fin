@@ -5,7 +5,8 @@ import math
 import csv
 import shutil
 
-from data_source.data_reader import get_config, get_paths
+from config import get_config
+from data_source.data_reader import get_paths
 from env.config import get_config as get_env_config
 from rl_fin.data_reader import register_csv_dialect
 
