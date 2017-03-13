@@ -12,10 +12,12 @@ class ThreadingModel(Enum):
     ST = 0
     MT = 1
 
+
 class RewardType(Enum):
     RPL = 0
     URPL = 1
     TPL = 2
+
 
 class RewardAlgo(Enum):
     PCT = 0
@@ -27,10 +29,10 @@ class Config(object):
     rendering_backend = RenderingBackend.SOFTWARE
     threading_model = ThreadingModel.ST
     # screen resolution
-    window_px_width = 160#42
-    window_px_height = 160#42
+    window_px_width = 160  # 42
+    window_px_height = 160  # 42
     # episode length
-    episode_length = 2000
+    episode_length = 12000
     # episode_length = 24 * 60 * 365 * 1.4 //  get_data_config().bar_min
     # window width in bars
     ww = 100
@@ -56,11 +58,13 @@ class Config(object):
 
     rand_start = False
     start_seed = 0
-    play_length = None # set it to some value >= episode length
+    play_length = None  # set it to some value >= episode length
 
     draw_training_line = False
 
+
 _config = Config()
+
 
 def get_config() -> Config:
     return _config

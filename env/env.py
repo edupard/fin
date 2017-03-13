@@ -236,7 +236,7 @@ class Environment:
 
         dl = self._data_length if get_config().play_length is None else get_config().play_length + get_config().ww + 1
 
-        if dl - get_config().episode_length <= get_config().ww:
+        if dl - get_config().episode_length <= get_config().ww + get_config().start_seed if not get_config().rand_start else 0:
             raise "game length is too long"
 
         self._ep_start_idx = get_config().ww + get_config().start_seed
