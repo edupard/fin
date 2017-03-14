@@ -8,14 +8,17 @@ from env.action import Action, convert_to_action
 import numpy as np
 import math
 
-draw_deals = True
+draw_deals = False
 draw_pct_reward = True
+draw_pct_reward_check = False
 draw_usd_reward = True
-draw_value = True
-draw_probabilities = True
+draw_value = False
+draw_probabilities = False
 
 subplots = 1
 if draw_pct_reward:
+    subplots += 1
+if draw_pct_reward_check:
     subplots += 1
 if draw_usd_reward:
     subplots += 1
@@ -117,11 +120,21 @@ def main():
             curr_t = mpl_n_t[data_len - 1]
             yield (ent_t, ent_px, curr_t, curr_px, curr_px > ent_px if state == State.LONG else curr_px < ent_px, state)
 
+    last_axes = None
     fig = plt.figure()
     subplot_idx = 0
+    p_ax = None
+    tr_ax = None
+    pct_ax = None
+    usd_ax = None
+    v_ax = None
+    prob_ax = None
+
     # Plot prices
     subplot_idx += 1
     p_ax = create_axis(fig, None, subplot_idx, '%.2f')
+    last_axes = p_ax
+    p_ax.set_title("Price")
     px, px_t = extract_data_axes(make_step_line(mpl_t, p))
     p_ax.plot_date(px_t, px, color='b', fmt='-')
 
@@ -184,21 +197,36 @@ def main():
     if draw_pct_reward:
         subplot_idx += 1
         tr_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
+        last_axes = tr_ax
+        tr_ax.set_title("Pct reward per fixed nominal, Max drop down: %.3f%% Sharp ratio: %.2f" % (pct_dd, sharp_ratio))
         tr_ax.plot_date(mpl_t, tr, color='b', fmt='-')
+
+    if draw_pct_reward_check:
+        subplot_idx += 1
+        pct_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
+        last_axes = pct_ax
+        pct_ax.set_title("Pct reward check")
+        pct_ax.plot_date(t_a, pct_pl_a, color='b', fmt='-')
     if draw_usd_reward:
         subplot_idx += 1
         usd_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
+        last_axes = usd_ax
+        usd_ax.set_title("Usd reward per lot, Max drop down: %.3f usd" % usd_dd)
         usd_ax.plot_date(t_a, usd_pl_a, color='b', fmt='-')
     # Plot value estimate
     if draw_value:
         subplot_idx += 1
         v_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
+        last_axes = v_ax
+        v_ax.set_title("Neural network value estimate")
         a_v, a_v_t = extract_data_axes(make_step_line(mpl_t, v))
         v_ax.plot_date(a_v_t, a_v, color='r', fmt='-')
     # Plot probabilities estimate
     if draw_probabilities:
         subplot_idx += 1
         prob_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
+        last_axes = prob_ax
+        prob_ax.set_title("Policy actions probabilites")
         a_p_f, a_p_f_t = extract_data_axes(make_step_line(mpl_t, p_f))
         a_p_l, a_p_l_t = extract_data_axes(make_step_line(mpl_t, p_l))
         a_p_s, a_p_s_t = extract_data_axes(make_step_line(mpl_t, p_s))
@@ -206,9 +234,15 @@ def main():
         prob_ax.plot_date(a_p_l_t, a_p_l, color='g', fmt='-')
         prob_ax.plot_date(a_p_s_t, a_p_s, color='r', fmt='-')
 
-    hide_time_labels(p_ax)
-    hide_time_labels(tr_ax)
-    hide_time_labels(v_ax)
+    def check_and_hide_time(ax):
+        if ax is not None and ax is not last_axes: hide_time_labels(ax)
+
+    check_and_hide_time(p_ax)
+    check_and_hide_time(tr_ax)
+    check_and_hide_time(pct_ax)
+    check_and_hide_time(usd_ax)
+    check_and_hide_time(v_ax)
+    check_and_hide_time(prob_ax)
 
     plt.show(True)
 
