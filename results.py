@@ -10,7 +10,7 @@ import math
 
 draw_deals = False
 draw_pct_reward = True
-draw_pct_reward_check = False
+draw_pct_reward_check = True
 draw_usd_reward = True
 draw_value = False
 draw_probabilities = False
@@ -188,7 +188,14 @@ def main():
 
     sharp_ratio = math.sqrt(r_a.shape[0]) * np.mean(r_a) / np.std(r_a)
 
+    pct_final_reward = tr[-1:][0]
+    pct_check_final_reward = pct_pl_a[-1:][0]
+    usd_final_reward = usd_pl_a[-1:][0]
+
     print('Deals count %d' % deals)
+    print('Pct final reward %.3f' % pct_final_reward)
+    print('Pct check final reward %.3f' % pct_check_final_reward)
+    print('Usd final reward %.3f' % usd_final_reward)
     print('Max pct drop down %.3f' % pct_dd)
     print('Max usd drop down %.3f' % usd_dd)
     print('Normalized sharp ratio: %.3f' % sharp_ratio)
@@ -198,20 +205,21 @@ def main():
         subplot_idx += 1
         tr_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
         last_axes = tr_ax
-        tr_ax.set_title("Pct reward per fixed nominal, Max drop down: %.3f%% Sharp ratio: %.2f" % (pct_dd, sharp_ratio))
+        tr_ax.set_title("Pct reward per fixed nominal: %.3f%% Max drop down: %.3f%% Sharp ratio: %.2f" % (
+            pct_final_reward, pct_dd, sharp_ratio))
         tr_ax.plot_date(mpl_t, tr, color='b', fmt='-')
 
     if draw_pct_reward_check:
         subplot_idx += 1
         pct_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
         last_axes = pct_ax
-        pct_ax.set_title("Pct reward check")
+        pct_ax.set_title("Check pct reward per fixed nominal: %.3f%%" % pct_check_final_reward)
         pct_ax.plot_date(t_a, pct_pl_a, color='b', fmt='-')
     if draw_usd_reward:
         subplot_idx += 1
         usd_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
         last_axes = usd_ax
-        usd_ax.set_title("Usd reward per lot, Max drop down: %.3f usd" % usd_dd)
+        usd_ax.set_title("Usd reward per lot: %.3f usd, Max drop down: %.3f usd" % (usd_final_reward, usd_dd))
         usd_ax.plot_date(t_a, usd_pl_a, color='b', fmt='-')
     # Plot value estimate
     if draw_value:
