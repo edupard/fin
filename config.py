@@ -88,10 +88,10 @@ class Config(object):
     reward_scale_multiplier = 100.0
 
     # Episode parameters
-    episode_length = 12000
+    episode_length = 12000 - 3000
     # episode_length = 24 * 60 * 365 * 1.4 //  get_data_config().bar_min
     rand_start = False
-    start_seed = 0
+    start_seed = 0 + 3000
     play_length = None  # set it to some value >= episode length
 
     # Learning parameters

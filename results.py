@@ -207,20 +207,23 @@ def main():
         last_axes = tr_ax
         tr_ax.set_title("Pct reward per fixed nominal: %.3f%% Max drop down: %.3f%% Sharp ratio: %.2f" % (
             pct_final_reward, pct_dd, sharp_ratio))
-        tr_ax.plot_date(mpl_t, tr, color='b', fmt='-')
+        a_tr, a_tr_t = extract_data_axes(make_step_line(mpl_t, tr))
+        tr_ax.plot_date(a_tr_t, a_tr, color='b', fmt='-')
 
     if draw_pct_reward_check:
         subplot_idx += 1
         pct_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
         last_axes = pct_ax
         pct_ax.set_title("Check pct reward per fixed nominal: %.3f%%" % pct_check_final_reward)
-        pct_ax.plot_date(t_a, pct_pl_a, color='b', fmt='-')
+        a_pct, a_pct_t = extract_data_axes(make_step_line(t_a, pct_pl_a))
+        pct_ax.plot_date(a_pct_t, a_pct, color='b', fmt='-')
     if draw_usd_reward:
         subplot_idx += 1
         usd_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
         last_axes = usd_ax
         usd_ax.set_title("Usd reward per lot: %.3f usd, Max drop down: %.3f usd" % (usd_final_reward, usd_dd))
-        usd_ax.plot_date(t_a, usd_pl_a, color='b', fmt='-')
+        a_usd, a_usd_t = extract_data_axes(make_step_line(t_a, usd_pl_a))
+        usd_ax.plot_date(a_usd_t, a_usd, color='b', fmt='-')
     # Plot value estimate
     if draw_value:
         subplot_idx += 1
