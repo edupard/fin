@@ -79,7 +79,7 @@ class Config(object):
     draw_training_line = False
 
     # Reward algo
-    reward_type = RewardType.URPL
+    reward_type = RewardType.RPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
     costs = 0.00

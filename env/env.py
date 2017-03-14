@@ -62,6 +62,9 @@ class Info:
         self.price = None
         self.time = None
 
+        self.next_price = None
+        self.next_time = None
+
 
 class DrawData:
     def __init__(self, env, quads, line: Line):
@@ -187,11 +190,6 @@ class Environment:
         w_slice = self._data[last_data_idx - get_config().ww:last_data_idx + 1, 1]
         std = np.std(w_slice)
         self._px_range_rolling_mean += (std - self._px_range_rolling_mean) * get_config().rolling_px_range_factor
-        # alternative algo
-        # min_px = np.min(w_slice)
-        # max_px = np.max(w_slice)
-        # px_h = max_px - min_px
-        # self._px_range_rolling_mean += (px_h - self._px_range_rolling_mean) * get_config().rolling_px_range_factor
 
         wh = max(self._px_range_rolling_mean, self._px_rolling_mean * get_config().min_px_window_height_pct)
 
@@ -265,11 +263,6 @@ class Environment:
 
         w_slice = self._data[s_idx - get_config().ww:s_idx + 1, 1]
         self._px_range_rolling_mean = np.std(w_slice)
-        # alternative algo
-        # min_px = np.min(w_slice)
-        # max_px = np.max(w_slice)
-        # px_h = max_px - min_px
-        # self._px_range_rolling_mean = px_h
 
         self._state = State.FLAT
         self._ent_time = None
@@ -284,19 +277,24 @@ class Environment:
 
         return _process_frame(arr)
 
+    def _fill_info(self, prev_data_idx, last_data_idx):
+        self._info.price = self._data[prev_data_idx][1]
+        self._info.time = self._data[prev_data_idx][0]
+        self._info.next_price = self._data[last_data_idx][1]
+        self._info.next_time = self._data[last_data_idx][0]
+
     def step(self, action: int):
         d = False
         r = 0.0
 
         prev_data_idx = math.floor(self._current_time)
-        self._info.price = self._data[prev_data_idx][1]
-        self._info.time = self._data[prev_data_idx][0]
-
         self._current_time += get_config().bpf
         if self._current_time >= self._end_time:
             self._current_time = self._end_time
             d = True
         last_data_idx = math.floor(self._current_time)
+        # Fill info prices and time
+        self._fill_info(prev_data_idx, last_data_idx)
 
         a = convert_to_action(action)
 
