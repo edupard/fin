@@ -242,16 +242,20 @@ class Environment:
             get_ui_thread().start_env(self)
             self._initialized = True
 
-        dl = self._data_length if get_config().train_length is None else get_config().train_length + get_config().ww + 1
+        start = get_config().ww + get_config().retrain_interval * get_config().retrain_seed
+        end = start + get_config().train_length
+        if end > self._data_length:
+            raise "train interval lie outside of availiable data"
 
-        if dl - get_config().train_episode_length <= get_config().ww + get_config().start_seed if not get_config().rand_start else 0:
-            raise "game length is too long"
-
-        self._ep_start_idx = get_config().ww + get_config().start_seed
+        self._ep_start_idx = start
         if get_config().rand_start:
-            self._ep_start_idx = np.random.randint(get_config().ww,
-                                                   high=dl - get_config().train_episode_length)
+            self._ep_start_idx = np.random.randint(start,
+                                                   high=start + get_config().train_length - get_config().train_episode_length + 1)
         self._ep_end_idx = self._ep_start_idx + get_config().train_episode_length
+        # overwrite start and end for evaluation mode
+        if get_config().evaluation:
+            self._ep_start_idx = end
+            self._ep_end_idx = min(self._ep_start_idx + get_config().retrain_interval, self._data_length)
 
         self._info = Info()
         self._dd = None
@@ -328,10 +332,20 @@ class Environment:
             self._ent_time = None
         # Check if we still in position
         if self._state != State.FLAT:
+            if self._state == State.LONG:
+                self._info.long_length += 1
+            elif self._state == State.SHORT:
+                self._info.short_length += 1
             ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, self._prev_px, 0,
                                                          px, 0)
         # Check if we open new position
         if self._state == State.FLAT and action != Action.FLAT:
+            if action == Action.BUY:
+                self._info.long += 1
+                self._info.long_length += 1
+            elif action == Action.SELL:
+                self._info.short += 1
+                self._info.short_length += 1
             self._ent_px = px
             self._ent_time = self._current_time
             self._state = State.LONG if action == Action.BUY else State.SHORT

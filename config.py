@@ -1,5 +1,6 @@
 import numpy as np
 from enum import Enum
+import configparser
 
 
 class EnvironmentType(Enum):
@@ -80,18 +81,21 @@ class Config(object):
     reward_type = RewardType.URPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
-    costs = 0.03
+    costs_ccy = 0.03
+    costs_on = False
+    costs = 0.0 if not costs_on else costs_ccy
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
     reward_scale_multiplier = 100.0
 
     # Episode parameters
-    train_length = None  # set it to some value >= episode length
-    train_episode_length = 2000  # 12000 - 3000
-    # episode_length = 24 * 60 * 7 // bar_min
+    # train_length = 24 * 60 * 7 // bar_min
+    train_length = 3000
+    train_episode_length = train_length // 1
     rand_start = False
-    start_seed = 0 + 3000
-
+    retrain_interval = 1000
+    evaluation = False
+    retrain_seed = 0
 
     # Learning parameters
     num_global_steps = 20e6
@@ -106,6 +110,19 @@ class Config(object):
     max_grad_norm = 40.0
 
     def __init__(self):
+        # overwrite some values if nn.ini found
+        config = configparser.ConfigParser()
+        try:
+            config.read('nn.ini')
+            configSection = config['DEFAULT']
+
+            self.evaluation = bool(configSection['evaluation'])
+            self.retrain_seed = int(configSection['retrain_seed'])
+            self.costs_on = configSection['costs_on']
+            self.costs = 0.0 if not self.costs_on else self.costs_ccy
+        except:
+            pass
+
         self.b_gamma = np.zeros((self.fwd_buffer_length))
         self.b_gamma_lambda = np.zeros((self.fwd_buffer_length))
         acc_gamma = 1

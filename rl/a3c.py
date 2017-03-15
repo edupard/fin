@@ -85,7 +85,7 @@ once it has processed enough steps.
 
 
 class A3C(object):
-    def __init__(self, env, task, summary_writer, visualise, track):
+    def __init__(self, env, task, summary_writer, visualise):
         """
 An implementation of the A3C algorithm that is reasonably well-tuned for the VNC environments.
 Below, we will have a modest amount of complexity due to the way TensorFlow handles data parallelism.
@@ -97,7 +97,6 @@ should be computed.
         self.task = task
         self.summary_writer = summary_writer
         self.visualise = visualise
-        self.track = track
 
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
@@ -235,12 +234,16 @@ should be computed.
             last_state = self.env.reset()
             last_features = self.local_network.get_initial_features()
 
+            rewards = 0.0
+            length = 0
             while True:
                 fetched = self.local_network.act(last_state, *last_features)
                 action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
 
                 a = action.argmax()
                 state, reward, terminal, info = self.env.step(a)
+                rewards += reward
+                length += 1
                 if self.visualise:
                     self.env.render()
 
@@ -264,6 +267,7 @@ should be computed.
 
                 if terminal:
                     break
+            print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
 
     def process(self, sess):
         sess.run(self.sync)  # copy weights from shared to local
