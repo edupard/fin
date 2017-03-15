@@ -65,6 +65,13 @@ class Info:
         self.next_price = None
         self.next_time = None
 
+        self.ccy = 0.0
+        self.ccy_c = 0.0
+        self.pct = 0.0
+        self.pct_c = 0.0
+        self.lr = 0.0
+        self.lr_c = 0.0
+
 
 class DrawData:
     def __init__(self, env, quads, line: Line):
@@ -301,41 +308,41 @@ class Environment:
         next_px = self._data[next_data_idx][1]
 
         # Calculate reward
-        r_ccy = 0.0
-        r_c_ccy = 0.0
-        r_pct = 0.0
-        r_c_pct = 0.0
-        r_lr = 0.0
-        r_c_lr = 0.0
+        ccy = 0.0
+        ccy_c = 0.0
+        pct = 0.0
+        pct_c = 0.0
+        lr = 0.0
+        lr_c = 0.0
 
         c = get_config().costs
 
         # Check if we liquidate position
         if (self._state == State.LONG and action != Action.BUY) or (
                         self._state == State.SHORT and action != Action.SELL):
-            r_ccy, r_pct, r_lr = Environment.calc_reward(r_ccy, r_pct, r_lr, self._state, self._ent_px, c, px, c)
-            r_c_ccy, r_c_pct, r_c_lr = Environment.calc_reward(r_c_ccy, r_c_pct, r_c_lr, self._state, self._prev_px, 0,
-                                                               px, c)
+            ccy, pct, lr = Environment.calc_reward(ccy, pct, lr, self._state, self._ent_px, c, px, c)
+            ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, self._prev_px, 0,
+                                                         px, c)
             self._state = State.FLAT
             self._ent_px = None
             self._ent_time = None
         # Check if we still in position
         if self._state != State.FLAT:
-            r_c_ccy, r_c_pct, r_c_lr = Environment.calc_reward(r_c_ccy, r_c_pct, r_c_lr, self._state, self._prev_px, 0,
-                                                               px, 0)
+            ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, self._prev_px, 0,
+                                                         px, 0)
         # Check if we open new position
         if self._state == State.FLAT and action != Action.FLAT:
             self._ent_px = px
             self._ent_time = self._current_time
             self._state = State.LONG if action == Action.BUY else State.SHORT
-            r_c_ccy, r_c_pct, r_c_lr = Environment.calc_reward(r_c_ccy, r_c_pct, r_c_lr, self._state, px, c, px, 0)
+            ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, px, c, px, 0)
         self._current_time = next_time
         self._prev_px = px
 
         # handle terminal state
         if d and self._state != State.FLAT:
-            r_ccy, r_pct, r_lr = Environment.calc_reward(r_ccy, r_pct, r_lr, self._state, self._ent_px, c, next_px, c)
-            r_c_ccy, r_c_pct, r_c_lr = Environment.calc_reward(r_c_ccy, r_c_pct, r_c_lr, self._state, px, 0, next_px, c)
+            ccy, pct, lr = Environment.calc_reward(ccy, pct, lr, self._state, self._ent_px, c, next_px, c)
+            ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, px, 0, next_px, c)
         # Calculate if pl positive
         self._pl_positive = False
         if self._state == State.LONG:
@@ -347,22 +354,30 @@ class Environment:
 
         # Emit reward
         r = 0.0
+        rs = get_config().reward_scale_multiplier
         if get_config().reward_type == RewardType.RPL:
             switcher = {
-                RewardAlgo.CCY: r_ccy,
-                RewardAlgo.PCT: r_pct,
-                RewardAlgo.LR: r_lr,
+                RewardAlgo.CCY: ccy,
+                RewardAlgo.PCT: pct * rs,
+                RewardAlgo.LR: lr * rs,
             }
             r = switcher.get(get_config().reward_algo)
         elif get_config().reward_type == RewardType.URPL:
             switcher = {
-                RewardAlgo.CCY: r_c_ccy,
-                RewardAlgo.PCT: r_c_pct,
-                RewardAlgo.LR: r_c_lr,
+                RewardAlgo.CCY: ccy_c,
+                RewardAlgo.PCT: pct_c * rs,
+                RewardAlgo.LR: lr_c * rs,
             }
             r = switcher.get(get_config().reward_algo)
+        # Update info
+        self._info.ccy += ccy
+        self._info.ccy_c += ccy_c
+        self._info.pct += pct * 100.0
+        self._info.pct_c += pct_c * 100.0
+        self._info.lr += lr * 100.0
+        self._info.lr_c += lr_c * 100.0
 
-        return self._get_state(), r * get_config().reward_scale_multiplier, d, self._info
+        return self._get_state(), r, d, self._info
 
     @staticmethod
     def calc_reward(ccy, pct, lr, state, p1, p1_cost, p2, p2_cost):

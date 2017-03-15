@@ -8,24 +8,29 @@ from env.action import Action, convert_to_action
 import numpy as np
 import math
 
-draw_deals = True
-draw_pct_reward = True
-draw_pct_reward_check = True
-draw_usd_reward = True
+draw_deals = False
+# PL
+draw_ccy = True
+draw_ccy_c = False
+draw_pct = True
+draw_pct_c = False
+draw_lr = False
+draw_lr_c = False
+# NN
 draw_value = False
 draw_probabilities = False
 
-subplots = 1
-if draw_pct_reward:
-    subplots += 1
-if draw_pct_reward_check:
-    subplots += 1
-if draw_usd_reward:
-    subplots += 1
-if draw_value:
-    subplots += 1
-if draw_probabilities:
-    subplots += 1
+subplots = 0
+
+
+def count_subpots(l):
+    global subplots
+    for d in l:
+        if d:
+            subplots += 1
+
+
+count_subpots((True, draw_ccy, draw_ccy_c, draw_pct, draw_pct_c, draw_lr, draw_lr_c, draw_value, draw_probabilities))
 
 time_ftm = matplotlib.dates.DateFormatter('%y %b %d')
 
@@ -49,16 +54,37 @@ def create_axis(fig, shared_ax, id, y_fmt_str):
 
 def main():
     results = np.genfromtxt('results/{}.csv'.format(get_config().model), delimiter=',', dtype=np.float64)
-    t = results[:, 0].reshape((-1))
-    p = results[:, 1].reshape((-1))
-    n_t = results[:, 2].reshape((-1))
-    n_p = results[:, 3].reshape((-1))
-    r = results[:, 4].reshape((-1))
-    a = results[:, 5].reshape((-1))
-    v = results[:, 6].reshape((-1))
-    p_f = results[:, 7].reshape((-1))
-    p_l = results[:, 8].reshape((-1))
-    p_s = results[:, 9].reshape((-1))
+    col_idx = 0
+    t = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    p = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    n_t = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    n_p = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    ccy = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    ccy_c = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    pct = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    pct_c = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    lr = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    lr_c = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    a = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    v = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    p_f = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    p_l = results[:, col_idx].reshape((-1))
+    col_idx += 1
+    p_s = results[:, col_idx].reshape((-1))
+    col_idx += 1
     data_len = len(t)
 
     def reduce_time(ta):
@@ -66,15 +92,8 @@ def main():
             dt = datetime.datetime.fromtimestamp(ta[idx])
             yield matplotlib.dates.date2num(dt)
 
-    def reduce_reward():
-        tr = 0.0
-        for idx in range(data_len):
-            tr += r[idx]
-            yield tr / get_config().reward_scale_multiplier * 100.0
-
     mpl_t = np.fromiter(reduce_time(t), dtype=np.float64)
     mpl_n_t = np.fromiter(reduce_time(n_t), dtype=np.float64)
-    tr = np.fromiter(reduce_reward(), dtype=np.float64)
 
     def make_step_line(ax, ay):
         if len(ax) != len(ay):
@@ -122,29 +141,37 @@ def main():
     last_axes = None
     fig = plt.figure()
     subplot_idx = 0
+    # axes
     p_ax = None
-    tr_ax = None
+    ccy_ax = None
+    ccy_c_ax = None
     pct_ax = None
-    usd_ax = None
+    pct_c_ax = None
+    lr_ax = None
+    lr_c_ax = None
     v_ax = None
     prob_ax = None
 
     # Plot prices
+    def calc_sharp_ratio(r):
+        def generate_discrete_reward():
+            p_r = None
+            for idx in range(r.shape[0]):
+                yield r[idx] - (0 if p_r is None else p_r)
+                p_r = r[idx]
+
+        d_r = np.fromiter(generate_discrete_reward(), dtype=np.float64)
+        return math.sqrt(d_r.shape[0]) * np.mean(d_r) / np.std(d_r)
+
+    sharp_ratio = calc_sharp_ratio(pct_c)
+
     subplot_idx += 1
     p_ax = create_axis(fig, None, subplot_idx, '%.2f')
     last_axes = p_ax
-    p_ax.set_title("Price")
+    p_ax.set_title("Sharp ratio: %.3f" % sharp_ratio)
     px, px_t = extract_data_axes(make_step_line(mpl_t, p))
     p_ax.plot_date(px_t, px, color='b', fmt='-')
 
-    t_a = np.array([mpl_t[0]], dtype=np.float64)
-    dc_a = np.array([0])
-    usd_pl_a = np.array([0.0], dtype=np.float64)
-    pct_pl_a = np.array([0.0], dtype=np.float64)
-    r_a = np.array([], dtype=np.float64)
-
-    usd_pl = 0.0
-    pct_pl = 0.0
     deals = 0
     for (ent_t, ent_px, exit_t, exit_px, pl_positive, state) in generate_deals():
         deals += 1
@@ -154,75 +181,56 @@ def main():
             c = 'g' if pl_positive else 'r'
             p_ax.plot_date([ent_t, exit_t], [ent_px, exit_px], color=c, fmt='-')
 
-        pos_mult = 1.0 if state == State.LONG else -1.0
-        act_ent_px = ent_px + pos_mult * get_config().costs
-        act_exit_px = exit_px - pos_mult * get_config().costs
-        lot_usd_pl = pos_mult * (act_exit_px - act_ent_px)
-        nominal_pct_pl = lot_usd_pl / act_ent_px * 100.0
+    def calc_dd(r):
+        def generate_previous_max():
+            max = 0.0
+            for idx in range(len(r)):
+                # update max
+                if r[idx] > max:
+                    max = r[idx]
+                yield max
 
-        usd_pl += lot_usd_pl
-        pct_pl += nominal_pct_pl
-
-        t_a = np.append(t_a, exit_t)
-        dc_a = np.append(dc_a, deals)
-        usd_pl_a = np.append(usd_pl_a, usd_pl)
-        pct_pl_a = np.append(pct_pl_a, pct_pl)
-        r_a = np.append(r_a, nominal_pct_pl)
-
-    def generate_previous_max_pl(tr):
-        max = 0.0
-        for idx in range(len(tr)):
-            # update max
-            if tr[idx] > max:
-                max = tr[idx]
-            yield max
-
-    pct_prev_max = np.fromiter(generate_previous_max_pl(tr), dtype=np.float64)
-    pct_dd_a = tr - pct_prev_max
-    pct_dd = np.min(pct_dd_a)
-
-    usd_pl_prev_max = np.fromiter(generate_previous_max_pl(usd_pl_a), dtype=np.float64)
-    usd_pl_dd_a = usd_pl_a - usd_pl_prev_max
-    usd_dd = np.min(usd_pl_dd_a)
-
-    sharp_ratio = math.sqrt(r_a.shape[0]) * np.mean(r_a) / np.std(r_a)
-
-    pct_final_reward = tr[-1:][0]
-    pct_check_final_reward = pct_pl_a[-1:][0]
-    usd_final_reward = usd_pl_a[-1:][0]
+        prev_max = np.fromiter(generate_previous_max(), dtype=np.float64)
+        dd_a = r - prev_max
+        return np.min(dd_a)
 
     print('Deals count %d' % deals)
-    print('Pct final reward %.3f' % pct_final_reward)
-    print('Pct check final reward %.3f' % pct_check_final_reward)
-    print('Usd final reward %.3f' % usd_final_reward)
-    print('Max pct drop down %.3f' % pct_dd)
-    print('Max usd drop down %.3f' % usd_dd)
-    print('Normalized sharp ratio: %.3f' % sharp_ratio)
+
+    def plot_reward(caption, r, subplot_idx):
+        ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
+        tr = r[-1:][0]
+        dd = calc_dd(r)
+        ax.set_title('{}: {:.3f} Max drop down: {:.3f}'.format(caption, tr, dd))
+        a_r, a_t = extract_data_axes(make_step_line(mpl_t, r))
+        ax.plot_date(a_t, a_r, color='b', fmt='-')
+        return ax
 
     # Plot returns
-    if draw_pct_reward:
+    if draw_ccy:
         subplot_idx += 1
-        tr_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
-        last_axes = tr_ax
-        tr_ax.set_title("Pct reward per fixed nominal: %.3f%% Max drop down: %.3f%% Sharp ratio: %.2f" % (
-            pct_final_reward, pct_dd, sharp_ratio))
-        a_tr, a_tr_t = extract_data_axes(make_step_line(mpl_t, tr))
-        tr_ax.plot_date(a_tr_t, a_tr, color='b', fmt='-')
-
-    if draw_pct_reward_check:
+        ccy_ax = plot_reward('Usd reward per fixed lot', ccy, subplot_idx)
+        last_axes = ccy_ax
+    if draw_ccy_c:
         subplot_idx += 1
-        pct_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
+        ccy_c_ax = plot_reward('Usd continous reward per fixed lot', ccy_c, subplot_idx)
+        last_axes = ccy_c_ax
+    if draw_pct:
+        subplot_idx += 1
+        pct_ax = plot_reward('Pct reward per fixed nominal', pct, subplot_idx)
         last_axes = pct_ax
-        pct_ax.set_title("Check pct reward per fixed nominal: %.3f%%" % pct_check_final_reward)
-        a_pct, a_pct_t = extract_data_axes(make_step_line(t_a, pct_pl_a))
-        pct_ax.plot_date(a_pct_t, a_pct, color='b', fmt='-')
-    if draw_usd_reward:
+    if draw_pct_c:
         subplot_idx += 1
-        usd_ax = create_axis(fig, p_ax, subplot_idx, '%.3f')
-        last_axes = usd_ax
-        usd_ax.set_title("Usd reward per lot: %.3f usd, Max drop down: %.3f usd" % (usd_final_reward, usd_dd))
-        a_usd, a_usd_t = extract_data_axes(make_step_line(t_a, usd_pl_a))
-        usd_ax.plot_date(a_usd_t, a_usd, color='b', fmt='-')
+        pct_c_ax = plot_reward('Pct continous reward per fixed nominal', pct_c, subplot_idx)
+        last_axes = pct_c_ax
+    if draw_lr:
+        subplot_idx += 1
+        lr_ax = plot_reward('Log reward per fixed nominal', lr, subplot_idx)
+        last_axes = lr_ax
+    if draw_lr_c:
+        subplot_idx += 1
+        lr_ax_c = plot_reward('Log continous reward per fixed nominal', lr_c, subplot_idx)
+        last_axes = lr_ax_c
+
     # Plot value estimate
     if draw_value:
         subplot_idx += 1
@@ -248,9 +256,12 @@ def main():
         if ax is not None and ax is not last_axes: hide_time_labels(ax)
 
     check_and_hide_time(p_ax)
-    check_and_hide_time(tr_ax)
+    check_and_hide_time(ccy_ax)
+    check_and_hide_time(ccy_c_ax)
     check_and_hide_time(pct_ax)
-    check_and_hide_time(usd_ax)
+    check_and_hide_time(pct_c_ax)
+    check_and_hide_time(lr_ax)
+    check_and_hide_time(lr_c_ax)
     check_and_hide_time(v_ax)
     check_and_hide_time(prob_ax)
 

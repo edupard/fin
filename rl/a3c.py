@@ -244,7 +244,17 @@ should be computed.
                 if self.visualise:
                     self.env.render()
 
-                row = [info.time, info.price, info.next_time, info.next_price, reward, a]
+                row = [info.time,
+                       info.price,
+                       info.next_time,
+                       info.next_price,
+                       info.ccy,
+                       info.ccy_c,
+                       info.pct,
+                       info.pct_c,
+                       info.lr,
+                       info.lr_c,
+                       a]
                 row.extend(value_)
                 row.extend(action_distribution.reshape((-1)))
                 writer.writerow(row)
