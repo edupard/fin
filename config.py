@@ -33,7 +33,6 @@ class Config(object):
     environment = EnvironmentType.FIN
     model = 'qo_1h'
     log_dir = './models/' + model
-    # log_dir = './models/exp'
 
     # Data config
     yahoo = False
@@ -87,11 +86,12 @@ class Config(object):
     reward_scale_multiplier = 100.0
 
     # Episode parameters
-    episode_length = 2000  # 12000 - 3000
+    train_length = None  # set it to some value >= episode length
+    train_episode_length = 2000  # 12000 - 3000
     # episode_length = 24 * 60 * 7 // bar_min
     rand_start = False
     start_seed = 0 + 3000
-    play_length = None  # set it to some value >= episode length
+
 
     # Learning parameters
     num_global_steps = 20e6

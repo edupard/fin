@@ -242,16 +242,16 @@ class Environment:
             get_ui_thread().start_env(self)
             self._initialized = True
 
-        dl = self._data_length if get_config().play_length is None else get_config().play_length + get_config().ww + 1
+        dl = self._data_length if get_config().train_length is None else get_config().train_length + get_config().ww + 1
 
-        if dl - get_config().episode_length <= get_config().ww + get_config().start_seed if not get_config().rand_start else 0:
+        if dl - get_config().train_episode_length <= get_config().ww + get_config().start_seed if not get_config().rand_start else 0:
             raise "game length is too long"
 
         self._ep_start_idx = get_config().ww + get_config().start_seed
         if get_config().rand_start:
             self._ep_start_idx = np.random.randint(get_config().ww,
-                                                   high=dl - get_config().episode_length)
-        self._ep_end_idx = self._ep_start_idx + get_config().episode_length
+                                                   high=dl - get_config().train_episode_length)
+        self._ep_end_idx = self._ep_start_idx + get_config().train_episode_length
 
         self._info = Info()
         self._dd = None
