@@ -247,7 +247,6 @@ class Environment:
         self._ep_end_idx = self._ep_start_idx + get_config().episode_length
 
         self._info = Info()
-        self._tr = 0.0
         self._dd = None
         self._prev_px = None
         self._f = 0
@@ -302,38 +301,41 @@ class Environment:
         next_px = self._data[next_data_idx][1]
 
         # Calculate reward
-        r = 0.0
+        r_ccy = 0.0
+        r_c_ccy = 0.0
+        r_pct = 0.0
+        r_c_pct = 0.0
+        r_lr = 0.0
+        r_c_lr = 0.0
+
+        c = get_config().costs
+
         # Check if we liquidate position
         if (self._state == State.LONG and action != Action.BUY) or (
-                self._state == State.SHORT and action != Action.SELL):
-            if get_config().reward_type == RewardType.RPL or get_config().reward_type == RewardType.TPL:
-                r += Environment.calc_reward(self._state, self._ent_px, get_config().costs, px, get_config().costs)
-            elif get_config().reward_type == RewardType.URPL:
-                r += Environment.calc_reward(self._state, self._prev_px, 0, px, get_config().costs)
+                        self._state == State.SHORT and action != Action.SELL):
+            r_ccy, r_pct, r_lr = Environment.calc_reward(r_ccy, r_pct, r_lr, self._state, self._ent_px, c, px, c)
+            r_c_ccy, r_c_pct, r_c_lr = Environment.calc_reward(r_c_ccy, r_c_pct, r_c_lr, self._state, self._prev_px, 0,
+                                                               px, c)
             self._state = State.FLAT
             self._ent_px = None
             self._ent_time = None
         # Check if we still in position
-        if self._state != State.FLAT and get_config().reward_type == RewardType.URPL:
-            r += Environment.calc_reward(self._state, self._prev_px, 0, px, 0)
+        if self._state != State.FLAT:
+            r_c_ccy, r_c_pct, r_c_lr = Environment.calc_reward(r_c_ccy, r_c_pct, r_c_lr, self._state, self._prev_px, 0,
+                                                               px, 0)
         # Check if we open new position
         if self._state == State.FLAT and action != Action.FLAT:
             self._ent_px = px
             self._ent_time = self._current_time
             self._state = State.LONG if action == Action.BUY else State.SHORT
-            if get_config().reward_type == RewardType.URPL:
-                r += Environment.calc_reward(self._state, px, get_config().costs, px, 0)
-
+            r_c_ccy, r_c_pct, r_c_lr = Environment.calc_reward(r_c_ccy, r_c_pct, r_c_lr, self._state, px, c, px, 0)
         self._current_time = next_time
         self._prev_px = px
 
         # handle terminal state
         if d and self._state != State.FLAT:
-            if get_config().reward_type == RewardType.RPL or get_config().reward_type == RewardType.TPL:
-                r += Environment.calc_reward(self._state, self._ent_px, get_config().costs, next_px, get_config().costs)
-            elif get_config().reward_type == RewardType.URPL:
-                r += Environment.calc_reward(self._state, px, 0, next_px, get_config().costs)
-
+            r_ccy, r_pct, r_lr = Environment.calc_reward(r_ccy, r_pct, r_lr, self._state, self._ent_px, c, next_px, c)
+            r_c_ccy, r_c_pct, r_c_lr = Environment.calc_reward(r_c_ccy, r_c_pct, r_c_lr, self._state, px, 0, next_px, c)
         # Calculate if pl positive
         self._pl_positive = False
         if self._state == State.LONG:
@@ -344,27 +346,33 @@ class Environment:
         self._draw()
 
         # Emit reward
-        if get_config().reward_type == RewardType.TPL:
-            self._tr += r
-            if d:
-                r = self._tr
-            else:
-                r = 0.
+        r = 0.0
+        if get_config().reward_type == RewardType.RPL:
+            switcher = {
+                RewardAlgo.CCY: r_ccy,
+                RewardAlgo.PCT: r_pct,
+                RewardAlgo.LR: r_lr,
+            }
+            r = switcher.get(get_config().reward_algo)
+        elif get_config().reward_type == RewardType.URPL:
+            switcher = {
+                RewardAlgo.CCY: r_c_ccy,
+                RewardAlgo.PCT: r_c_pct,
+                RewardAlgo.LR: r_c_lr,
+            }
+            r = switcher.get(get_config().reward_algo)
+
         return self._get_state(), r * get_config().reward_scale_multiplier, d, self._info
 
     @staticmethod
-    def calc_reward(state, p1, p1_cost, p2, p2_cost):
+    def calc_reward(ccy, pct, lr, state, p1, p1_cost, p2, p2_cost):
         if state == State.FLAT:
             raise "Illegal state argument"
         pos_mult = 1.0 if state == State.LONG else -1.0
         p1_eff = p1 + pos_mult * p1_cost
         p2_eff = p2 - pos_mult * p2_cost
-        if get_config().reward_algo == RewardAlgo.CCY:
-            return pos_mult * (p2_eff - p1_eff)
-        elif get_config().reward_algo == RewardAlgo.PCT:
-            return pos_mult * (p2_eff - p1_eff) / p1_eff
-        elif get_config().reward_algo == RewardAlgo.LOG_RETURN:
-            return pos_mult * math.log(p2_eff / p1_eff)
+        return ccy + pos_mult * (p2_eff - p1_eff), pct + pos_mult * (
+            p2_eff - p1_eff) / p1_eff, lr + pos_mult * math.log(p2_eff / p1_eff)
 
     def stop(self):
         get_ui_thread().stop_env(self)

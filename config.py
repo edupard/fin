@@ -20,13 +20,12 @@ class ThreadingModel(Enum):
 class RewardType(Enum):
     RPL = 0
     URPL = 1
-    TPL = 2
 
 
 class RewardAlgo(Enum):
     PCT = 0
     CCY = 1
-    LOG_RETURN = 2
+    LR = 2
 
 
 class Config(object):
@@ -46,11 +45,11 @@ class Config(object):
     # ticker = 'KO'
     # bar_min = 24 * 60
     # Brent
-    ticker = 'QO'
-    bar_min = 60
+    # ticker = 'QO'
+    # bar_min = 60
     # Experiments
-    # ticker = 'EXP'
-    # bar_min = 30
+    ticker = 'EXP'
+    bar_min = 30
 
     switch_off_zero_bars = True
 
@@ -79,8 +78,8 @@ class Config(object):
     draw_training_line = False
 
     # Reward algo
-    reward_type = RewardType.URPL
-    reward_algo = RewardAlgo.PCT
+    reward_type = RewardType.RPL
+    reward_algo = RewardAlgo.CCY
     # slippage + commission
     costs = 0.03
     # NB: PCT reward do not converge due to floating point arithmetic precision
@@ -88,8 +87,8 @@ class Config(object):
     reward_scale_multiplier = 100.0
 
     # Episode parameters
-    episode_length = 2000  # 12000 - 3000
-    # episode_length = 24 * 60 * 7 // bar_min
+    # episode_length = 2000  # 12000 - 3000
+    episode_length = 24 * 60 * 7 // bar_min
     rand_start = False
     start_seed = 0 + 3000
     play_length = None  # set it to some value >= episode length
