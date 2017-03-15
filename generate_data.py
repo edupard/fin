@@ -7,8 +7,8 @@ import shutil
 
 from config import get_config
 from data_source.data_reader import get_paths
-from env.config import get_config as get_env_config
-from rl_fin.data_reader import register_csv_dialect
+from config import get_config
+from data_source.data_reader import register_csv_dialect
 
 data_len = 2 * 365 * 24 * 60
 start_px = 50.0
@@ -19,10 +19,10 @@ start_px = 50.0
 
 # + 150K
 # easy : plain sin
-# expectation = 0.0
-# volatility = 0.0
-# sin_amplitude_pct = 0.1
-# rolling_factor = 0.0
+expectation = 0.0
+volatility = 0.0
+sin_amplitude_pct = 0.1
+rolling_factor = 0.0
 
 # + 150K
 # easy : modern vol, sin amplitude correlated to current price
@@ -40,10 +40,10 @@ start_px = 50.0
 
 # - looks like it tend to long strategy, especially if vol is low or expectation is super high, but convergence is not stable and very slow
 # hard (theoretically solution exists, but pl is not super stable) : big trend, modern vol, no sin component
-expectation = 0.0
-volatility = 35.0
-sin_amplitude_pct = 0.00
-rolling_factor = 1.0
+# expectation = 0.0
+# volatility = 35.0
+# sin_amplitude_pct = 0.00
+# rolling_factor = 1.0
 
 # ~48
 # + 600K
@@ -92,7 +92,7 @@ def generate_data():
         sin_amplitude += (p * sin_amplitude_pct - sin_amplitude) * rolling_factor
         r = np.random.lognormal(ln_mu, ln_std)
         p *= r
-        min_w = get_env_config().ww * get_config().bar_min
+        min_w = get_config().ww * get_config().bar_min
         i = idx % min_w
         sin_component = sin_amplitude * math.sin(2. * math.pi * i / (min_w - 1))
         p_combined = p + sin_component

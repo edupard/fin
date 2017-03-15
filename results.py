@@ -8,7 +8,7 @@ from env.action import Action, convert_to_action
 import numpy as np
 import math
 
-draw_deals = False
+draw_deals = True
 draw_pct_reward = True
 draw_pct_reward_check = True
 draw_usd_reward = True
@@ -100,8 +100,7 @@ def main():
         ent_px = None
         for idx in range(data_len):
             action = convert_to_action(a[idx])
-            # TODO: correct is p[idx] as well as env calc is incorrect
-            curr_px = n_p[idx]
+            curr_px = p[idx]
             curr_t = mpl_t[idx]
             # process position liquidation
             if state == State.LONG and action != Action.BUY:

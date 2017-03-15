@@ -277,108 +277,73 @@ class Environment:
 
         return _process_frame(arr)
 
-    def _fill_info(self, prev_data_idx, last_data_idx):
-        self._info.price = self._data[prev_data_idx][1]
-        self._info.time = self._data[prev_data_idx][0]
-        self._info.next_price = self._data[last_data_idx][1]
-        self._info.next_time = self._data[last_data_idx][0]
+    def _fill_info(self, data_idx, next_data_idx):
+        self._info.price = self._data[data_idx][1]
+        self._info.time = self._data[data_idx][0]
+        self._info.next_price = self._data[next_data_idx][1]
+        self._info.next_time = self._data[next_data_idx][0]
 
     def step(self, action: int):
         d = False
-        r = 0.0
 
-        prev_data_idx = math.floor(self._current_time)
-        self._current_time += get_config().bpf
-        if self._current_time >= self._end_time:
-            self._current_time = self._end_time
+        data_idx = math.floor(self._current_time)
+
+        next_time = self._current_time + get_config().bpf
+        if next_time >= self._end_time:
+            next_time = self._end_time
             d = True
-        last_data_idx = math.floor(self._current_time)
+        next_data_idx = math.floor(next_time)
         # Fill info prices and time
-        self._fill_info(prev_data_idx, last_data_idx)
+        self._fill_info(data_idx, next_data_idx)
 
-        a = convert_to_action(action)
+        action = convert_to_action(action)
 
-        last_px = self._data[last_data_idx][1]
+        px = self._data[data_idx][1]
+        next_px = self._data[next_data_idx][1]
 
-        # handle reward
-        if get_config().reward_type == RewardType.RPL or get_config().reward_type == RewardType.TPL:
-            if self._state == State.LONG and (a == Action.FLAT or a == Action.SELL):
-                pl = last_px - self._ent_px - 2 * get_config().costs
-                factor = self._ent_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                r += pl / factor
-            elif self._state == State.SHORT and (a == Action.FLAT or a == Action.BUY):
-                pl = self._ent_px - last_px - 2 * get_config().costs
-                factor = self._ent_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                r += pl / factor
-        # handle position
-        if a == Action.BUY and self._state != State.LONG:
-            self._info.long += 1
-            self._ent_px = last_px
-            self._ent_time = self._current_time
-            self._state = State.LONG
-            self._prev_px = last_px
-            if get_config().reward_type == RewardType.URPL:
-                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                r += (-1. if self._state == State.FLAT else -2.) * get_config().costs / factor
-        elif a == Action.SELL and self._state != State.SHORT:
-            self._info.short += 1
-            self._ent_px = last_px
-            self._ent_time = self._current_time
-            self._state = State.SHORT
-            self._prev_px = last_px
-            if get_config().reward_type == RewardType.URPL:
-                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                r += (-1. if self._state == State.FLAT else -2.) * get_config().costs / factor
-        elif a == Action.FLAT:
+        # Calculate reward
+        r = 0.0
+        # Check if we liquidate position
+        if (self._state == State.LONG and action != Action.BUY) or (
+                self._state == State.SHORT and action != Action.SELL):
+            if get_config().reward_type == RewardType.RPL or get_config().reward_type == RewardType.TPL:
+                r += Environment.calc_reward(self._state, self._ent_px, get_config().costs, px, get_config().costs)
+            elif get_config().reward_type == RewardType.URPL:
+                r += Environment.calc_reward(self._state, self._prev_px, 0, px, get_config().costs)
+            self._state = State.FLAT
             self._ent_px = None
             self._ent_time = None
-            self._state = State.FLAT
-            self._prev_px = None
-            if get_config().reward_type == RewardType.URPL and self._state != State.FLAT:
-                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                r += -get_config().costs / factor
-        elif a == Action.BUY and self._state == State.LONG:
-            self._info.long_length += 1
-        elif a == Action.SELL and self._state == State.SHORT:
-            self._info.short_length += 1
+        # Check if we still in position
+        if self._state != State.FLAT and get_config().reward_type == RewardType.URPL:
+            r += Environment.calc_reward(self._state, self._prev_px, 0, px, 0)
+        # Check if we open new position
+        if self._state == State.FLAT and action != Action.FLAT:
+            self._ent_px = px
+            self._ent_time = self._current_time
+            self._state = State.LONG if action == Action.BUY else State.SHORT
+            if get_config().reward_type == RewardType.URPL:
+                r += Environment.calc_reward(self._state, px, get_config().costs, px, 0)
 
-        if get_config().reward_type == RewardType.URPL:
-            if self._state == State.LONG:
-                pl = last_px - self._prev_px
-                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                r += pl / factor
-            elif self._state == State.SHORT:
-                pl = self._prev_px - last_px
-                factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                r += pl / factor
+        self._current_time = next_time
+        self._prev_px = px
+
+        # handle terminal state
+        if d and self._state != State.FLAT:
+            if get_config().reward_type == RewardType.RPL or get_config().reward_type == RewardType.TPL:
+                r += Environment.calc_reward(self._state, self._ent_px, get_config().costs, next_px, get_config().costs)
+            elif get_config().reward_type == RewardType.URPL:
+                r += Environment.calc_reward(self._state, px, 0, next_px, get_config().costs)
 
         # Calculate if pl positive
         self._pl_positive = False
         if self._state == State.LONG:
-            self._pl_positive = (last_px > self._ent_px)
+            self._pl_positive = (next_px > self._ent_px)
         elif self._state == State.SHORT:
-            self._pl_positive = (last_px < self._ent_px)
+            self._pl_positive = (next_px < self._ent_px)
 
         self._draw()
-        # handle terminal state
-        if d:
-            if get_config().reward_type == RewardType.RPL or get_config().reward_type == RewardType.TPL:
-                if self._state == State.LONG:
-                    pl = last_px - self._ent_px - 2 * get_config().costs
-                    factor = self._ent_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                    r += pl / factor
-                elif self._state == State.SHORT:
-                    pl = self._ent_px - last_px - 2 * get_config().costs
-                    factor = self._ent_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                    r += pl / factor
-            elif get_config().reward_type == RewardType.URPL:
-                if self._state != State.FLAT:
-                    factor = self._prev_px if get_config().reward_algo == RewardAlgo.PCT else 1.
-                    r += -get_config().costs / factor
 
-        self._prev_px = last_px
-
-        # Emit reward only when done
+        # Emit reward
         if get_config().reward_type == RewardType.TPL:
             self._tr += r
             if d:
@@ -386,6 +351,20 @@ class Environment:
             else:
                 r = 0.
         return self._get_state(), r * get_config().reward_scale_multiplier, d, self._info
+
+    @staticmethod
+    def calc_reward(state, p1, p1_cost, p2, p2_cost):
+        if state == State.FLAT:
+            raise "Illegal state argument"
+        pos_mult = 1.0 if state == State.LONG else -1.0
+        p1_eff = p1 + pos_mult * p1_cost
+        p2_eff = p2 - pos_mult * p2_cost
+        if get_config().reward_algo == RewardAlgo.CCY:
+            return pos_mult * (p2_eff - p1_eff)
+        elif get_config().reward_algo == RewardAlgo.PCT:
+            return pos_mult * (p2_eff - p1_eff) / p1_eff
+        elif get_config().reward_algo == RewardAlgo.LOG_RETURN:
+            return pos_mult * math.log(p2_eff / p1_eff)
 
     def stop(self):
         get_ui_thread().stop_env(self)

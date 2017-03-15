@@ -26,6 +26,7 @@ class RewardType(Enum):
 class RewardAlgo(Enum):
     PCT = 0
     CCY = 1
+    LOG_RETURN = 2
 
 
 class Config(object):
@@ -48,7 +49,6 @@ class Config(object):
     ticker = 'QO'
     bar_min = 60
     # Experiments
-    # yahoo = False
     # ticker = 'EXP'
     # bar_min = 30
 
@@ -79,17 +79,17 @@ class Config(object):
     draw_training_line = False
 
     # Reward algo
-    reward_type = RewardType.RPL
+    reward_type = RewardType.URPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
-    costs = 0.00
+    costs = 0.03
     # NB: PCT reward do not converge due to floating point arithmetic precision
-    # so we just scale reward to achieve convergence
+    # so we just scale reward to converge
     reward_scale_multiplier = 100.0
 
     # Episode parameters
-    episode_length = 12000 - 3000
-    # episode_length = 24 * 60 * 365 * 1.4 //  get_data_config().bar_min
+    episode_length = 2000  # 12000 - 3000
+    # episode_length = 24 * 60 * 7 // bar_min
     rand_start = False
     start_seed = 0 + 3000
     play_length = None  # set it to some value >= episode length
@@ -119,6 +119,7 @@ class Config(object):
 
 
 _config = Config()
+
 
 def get_config() -> Config:
     return _config
