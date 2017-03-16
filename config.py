@@ -1,6 +1,8 @@
 import numpy as np
 from enum import Enum
 import configparser
+import os
+from distutils.util import strtobool
 
 
 class EnvironmentType(Enum):
@@ -33,7 +35,7 @@ class Config(object):
     # env factory config
     environment = EnvironmentType.FIN
     model = 'qo_1h'
-    log_dir = './models/' + model
+    base_log_dir = os.path.join('./models/', model)
 
     # Data config
     yahoo = False
@@ -109,6 +111,9 @@ class Config(object):
     num_conv_layers = 6
     max_grad_norm = 40.0
 
+    def get_model_path(self, retrain_seed, costs_on):
+        return os.path.join(self.base_log_dir, str(retrain_seed), 'costs' if costs_on else 'no_costs')
+
     def __init__(self):
         # overwrite some values if nn.ini found
         config = configparser.ConfigParser()
@@ -116,12 +121,13 @@ class Config(object):
             config.read('nn.ini')
             configSection = config['DEFAULT']
 
-            self.evaluation = bool(configSection['evaluation'])
+            self.evaluation = bool(strtobool(configSection['evaluation']))
             self.retrain_seed = int(configSection['retrain_seed'])
-            self.costs_on = configSection['costs_on']
+            self.costs_on = bool(strtobool(configSection['costs_on']))
             self.costs = 0.0 if not self.costs_on else self.costs_ccy
         except:
             pass
+        self.log_dir = self.get_model_path(self.retrain_seed, self.costs_on)
 
         self.b_gamma = np.zeros((self.fwd_buffer_length))
         self.b_gamma_lambda = np.zeros((self.fwd_buffer_length))
