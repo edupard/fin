@@ -254,8 +254,8 @@ class Environment:
         self._ep_end_idx = self._ep_start_idx + get_config().train_episode_length
         # overwrite start and end for evaluation mode
         if get_config().evaluation:
-            self._ep_start_idx = end
-            self._ep_end_idx = min(self._ep_start_idx + get_config().retrain_interval, self._data_length)
+            self._ep_start_idx = start
+            self._ep_end_idx = min(start + get_config().train_length + get_config().retrain_interval, self._data_length)
 
         self._info = Info()
         self._dd = None
@@ -384,12 +384,12 @@ class Environment:
             }
             r = switcher.get(get_config().reward_algo)
         # Update info
-        self._info.ccy += ccy
-        self._info.ccy_c += ccy_c
-        self._info.pct += pct * 100.0
-        self._info.pct_c += pct_c * 100.0
-        self._info.lr += lr * 100.0
-        self._info.lr_c += lr_c * 100.0
+        self._info.ccy = ccy
+        self._info.ccy_c = ccy_c
+        self._info.pct = pct * 100.0
+        self._info.pct_c = pct_c * 100.0
+        self._info.lr = lr * 100.0
+        self._info.lr_c = lr_c * 100.0
 
         return self._get_state(), r, d, self._info
 

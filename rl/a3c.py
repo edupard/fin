@@ -226,9 +226,11 @@ should be computed.
 
     def evaluate(self, sess):
         sess.run(self.sync)
-        if not os.path.exists('results'):
-            os.makedirs('results')
-        with open('results/{}.csv'.format(get_config().model), 'w') as f:
+        folder_path = os.path.join('results', get_config().model)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        file_path = os.path.join(folder_path, '{}.csv'.format(get_config().retrain_seed))
+        with open(file_path, 'w') as f:
             writer = csv.writer(f, dialect='data')
 
             last_state = self.env.reset()
@@ -242,32 +244,34 @@ should be computed.
 
                 a = action.argmax()
                 state, reward, terminal, info = self.env.step(a)
-                rewards += reward
                 length += 1
                 if self.visualise:
                     self.env.render()
 
-                row = [info.time,
-                       info.price,
-                       info.next_time,
-                       info.next_price,
-                       info.ccy,
-                       info.ccy_c,
-                       info.pct,
-                       info.pct_c,
-                       info.lr,
-                       info.lr_c,
-                       a]
-                row.extend(value_)
-                row.extend(action_distribution.reshape((-1)))
-                writer.writerow(row)
+                if length > get_config().train_length:
+                    rewards += reward
+                if length > get_config().train_length:
+                    row = [info.time,
+                           info.price,
+                           info.next_time,
+                           info.next_price,
+                           info.ccy,
+                           info.ccy_c,
+                           info.pct,
+                           info.pct_c,
+                           info.lr,
+                           info.lr_c,
+                           a]
+                    row.extend(value_)
+                    row.extend(action_distribution.reshape((-1)))
+                    writer.writerow(row)
 
                 last_state = state
                 last_features = features
 
                 if terminal:
                     break
-            print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
+            print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length - get_config().train_length))
 
     def process(self, sess):
         sess.run(self.sync)  # copy weights from shared to local

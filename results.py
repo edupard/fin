@@ -7,6 +7,8 @@ from env.env import State
 from env.action import Action, convert_to_action
 import numpy as np
 import math
+import os
+import fnmatch
 
 draw_deals = False
 # PL
@@ -53,39 +55,90 @@ def create_axis(fig, shared_ax, id, y_fmt_str):
 
 
 def main():
-    results = np.genfromtxt('results/{}.csv'.format(get_config().model), delimiter=',', dtype=np.float64)
-    col_idx = 0
-    t = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    p = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    n_t = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    n_p = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    ccy = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    ccy_c = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    pct = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    pct_c = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    lr = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    lr_c = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    a = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    v = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    p_f = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    p_l = results[:, col_idx].reshape((-1))
-    col_idx += 1
-    p_s = results[:, col_idx].reshape((-1))
-    col_idx += 1
+    folder_path = os.path.join('results', get_config().model)
+    files = fnmatch.filter(os.listdir(folder_path), '*.csv')
+    files.sort()
+    t_a = []
+    p_a = []
+    n_t_a = []
+    n_p_a = []
+    ccy_a = []
+    ccy_c_a = []
+    pct_a = []
+    pct_c_a = []
+    lr_a = []
+    lr_c_a = []
+    a_a = []
+    v_a = []
+    p_f_a = []
+    p_l_a = []
+    p_s_a = []
+    for file_name in files:
+        file_path = os.path.join(folder_path, file_name)
+        results = np.genfromtxt(file_path, delimiter=',', dtype=np.float64)
+        col_idx = 0
+        t_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        p_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        n_t_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        n_p_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        ccy_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        ccy_c_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        pct_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        pct_c_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        lr_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        lr_c_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        a_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        v_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        p_f_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        p_l_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        p_s_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+
+    t = np.concatenate(t_a)
+    p = np.concatenate(p_a)
+    n_t = np.concatenate(n_t_a)
+    n_p = np.concatenate(n_p_a)
+    ccy = np.concatenate(ccy_a)
+    ccy_c = np.concatenate(ccy_c_a)
+    pct = np.concatenate(pct_a)
+    pct_c = np.concatenate(pct_c_a)
+    lr = np.concatenate(lr_a)
+    lr_c = np.concatenate(lr_c_a)
+    a = np.concatenate(a_a)
+    v = np.concatenate(v_a)
+    p_f = np.concatenate(p_f_a)
+    p_l = np.concatenate(p_l_a)
+    p_s = np.concatenate(p_s_a)
     data_len = len(t)
+
+    sharp_ratio = math.sqrt(pct_c.shape[0]) * np.mean(pct_c) / np.std(pct_c)
+
+    def convert_to_cum_reward(r):
+        tr = 0.0
+        for idx in range(r.shape[0]):
+            tr += r[idx]
+            r[idx] = tr
+
+    convert_to_cum_reward(ccy)
+    convert_to_cum_reward(ccy_c)
+    convert_to_cum_reward(pct)
+    convert_to_cum_reward(pct_c)
+    convert_to_cum_reward(lr)
+    convert_to_cum_reward(lr_c)
 
     def reduce_time(ta):
         for idx in range(data_len):
@@ -153,18 +206,6 @@ def main():
     prob_ax = None
 
     # Plot prices
-    def calc_sharp_ratio(r):
-        def generate_discrete_reward():
-            p_r = None
-            for idx in range(r.shape[0]):
-                yield r[idx] - (0 if p_r is None else p_r)
-                p_r = r[idx]
-
-        d_r = np.fromiter(generate_discrete_reward(), dtype=np.float64)
-        return math.sqrt(d_r.shape[0]) * np.mean(d_r) / np.std(d_r)
-
-    sharp_ratio = calc_sharp_ratio(pct_c)
-
     subplot_idx += 1
     p_ax = create_axis(fig, None, subplot_idx, '%.2f')
     last_axes = p_ax

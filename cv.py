@@ -11,10 +11,10 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-train_min = 1
-inc_train_min = 0.1
-inc_costs_train_min = 0.1
-validation_min = 1
+train_min = 0.0
+inc_train_min = 0.0
+inc_costs_train_min = 0.0
+validation_min = 1.5
 
 num_workers = None
 if num_workers is None:
@@ -199,7 +199,7 @@ def validate():
         cmds, notes = create_validation_shell_commands("a3c")
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
-    print("Waiting %d min for model to train" % validation_min)
+    print("Waiting %d min for model to validate" % validation_min)
     time.sleep(60 * validation_min)
     print("Stopping validation process")
     if os.name == 'nt':
@@ -209,57 +209,60 @@ def validate():
     time.sleep(5)
 
 
-def cross_validation(dry_run):
+def cross_validation(dry_run, skip_train, skip_costs_train, skip_validation):
     data = get_datasource()
     data_length = data.shape[0]
     max_seed = (data_length - get_config().ww - get_config().train_length) // get_config().retrain_interval
     # TODO: remove next line when debug finished
-    max_seed = 1
+    max_seed = 2
     # train without costs
-    for retrain_seed in range(max_seed + 1):
-        print("Starting train at %d seed step" % retrain_seed)
-        model_path = get_config().get_model_path(retrain_seed, False)
-        # remove model in dry_run mode
-        if dry_run:
-            print("Dry run - removing model at %s" % model_path)
+    if not skip_train:
+        for retrain_seed in range(max_seed + 1):
+            print("Starting train at %d seed step" % retrain_seed)
+            model_path = get_config().get_model_path(retrain_seed, False)
+            # remove model in dry_run mode
+            if dry_run:
+                print("Dry run - removing model at %s" % model_path)
+                shutil.rmtree(model_path, ignore_errors=True)
+            # if no model - copy prev model
+            if not os.path.exists(model_path) and retrain_seed > 0:
+                prev_model_path = get_config().get_model_path(retrain_seed - 1, False)
+                copy_model(model_path, prev_model_path)
+            # train model
+            # prepare ini file
+            print("Preparing nn.ini file")
+            prepare_config(False, retrain_seed, False)
+            print("Start training")
+            train(num_workers, retrain_seed, False, model_path)
+    if not skip_costs_train:
+        for retrain_seed in range(max_seed + 1):
+            print("Starting train with costs at %d seed step" % retrain_seed)
+            model_path = get_config().get_model_path(retrain_seed, True)
+            # remove model if exists - we always learn model with costs using prev model without costs
             shutil.rmtree(model_path, ignore_errors=True)
-        # if no model - copy prev model
-        if not os.path.exists(model_path) and retrain_seed > 0:
-            prev_model_path = get_config().get_model_path(retrain_seed - 1, False)
+            # copy model without costs
+            prev_model_path = get_config().get_model_path(retrain_seed, False)
             copy_model(model_path, prev_model_path)
-        # train model
-        # prepare ini file
-        print("Preparing nn.ini file")
-        prepare_config(False, retrain_seed, False)
-        print("Start training")
-        train(num_workers, retrain_seed, False, model_path)
-    for retrain_seed in range(max_seed + 1):
-        print("Starting train with costs at %d seed step" % retrain_seed)
-        model_path = get_config().get_model_path(retrain_seed, True)
-        # remove model if exists - we always learn model with costs using prev model without costs
-        shutil.rmtree(model_path, ignore_errors=True)
-        # copy model without costs
-        prev_model_path = get_config().get_model_path(retrain_seed, False)
-        copy_model(model_path, prev_model_path)
-        # prepare ini file
-        print("Preparing nn.ini file")
-        prepare_config(False, retrain_seed, True)
-        print("Start training")
-        train(num_workers, retrain_seed, True, model_path)
-    for retrain_seed in range(max_seed + 1):
-        print("Starting validation at %d seed step" % retrain_seed)
-        model_path = get_config().get_model_path(retrain_seed, True)
-        print("Preparing nn.ini file")
-        prepare_config(True, retrain_seed, True)
-        validate(retrain_seed, model_path)
+            # prepare ini file
+            print("Preparing nn.ini file")
+            prepare_config(False, retrain_seed, True)
+            print("Start training")
+            train(num_workers, retrain_seed, True, model_path)
+    if not skip_validation:
+        for retrain_seed in range(max_seed + 1):
+            print("Starting validation at %d seed step" % retrain_seed)
+            print("Preparing nn.ini file")
+            prepare_config(True, retrain_seed, True)
+            validate()
+    if os.path.exists("nn.ini"):
+        os.remove("nn.ini")
 
 
 if __name__ == "__main__":
-    # proc = subprocess.Popen(
-    #     ["C:\\Program Files\\Anaconda3\\envs\\rl\\python.exe", "worker.py", "--job-name", "ps", "--num-workers", "8"],
-    #     shell=True)
-
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('--dry-run', action='store_true', help="Dry run")
+    parser.add_argument('--skip-train', action='store_true', help="Skip train step")
+    parser.add_argument('--skip-costs-train', action='store_true', help="Skip train with costs step")
+    parser.add_argument('--skip-validation', action='store_true', help="Skip validation step")
     args = parser.parse_args()
-    cross_validation(args.dry_run)
+    cross_validation(args.dry_run, args.skip_train, args.skip_costs_train, args.skip_validation)
