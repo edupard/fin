@@ -11,9 +11,9 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-train_min = 0.0
-inc_train_min = 0.0
-inc_costs_train_min = 0.0
+train_min = 15.0
+inc_train_min = 15.0
+inc_costs_train_min = 15.0
 validation_min = 1.5
 
 num_workers = None
@@ -214,7 +214,7 @@ def cross_validation(dry_run, skip_train, skip_costs_train, skip_validation):
     data_length = data.shape[0]
     max_seed = (data_length - get_config().ww - get_config().train_length) // get_config().retrain_interval
     # TODO: remove next line when debug finished
-    max_seed = 2
+    # max_seed = 2
     # train without costs
     if not skip_train:
         for retrain_seed in range(max_seed + 1):
