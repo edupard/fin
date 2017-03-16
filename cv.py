@@ -12,8 +12,9 @@ from config import get_config
 from data_source.data_source import get_datasource
 
 train_min = 1
-inc_train_min = 1
-inc_costs_train_min = 1
+inc_train_min = 0.1
+inc_costs_train_min = 0.1
+validation_min = 1
 
 num_workers = None
 if num_workers is None:
@@ -27,7 +28,7 @@ def wrap_cmd_for_tmux(session, window, cmd):
     return window, "tmux send-keys -t {}:{} {} Enter".format(session, window, shlex.quote(cmd))
 
 
-def create_shell_commands(session, num_workers, model_path, shell='bash'):
+def create_train_shell_commands(session, num_workers, model_path, shell='bash'):
     conda_cmd = ['source', 'activate', 'rl_fin']
     base_cmd = [
         'CUDA_VISIBLE_DEVICES=',
@@ -79,6 +80,52 @@ def create_shell_commands(session, num_workers, model_path, shell='bash'):
     return cmds, notes
 
 
+def create_validation_shell_commands(session, shell='bash'):
+    conda_cmd = ['source', 'activate', 'rl_fin']
+    base_cmd = [
+        'CUDA_VISIBLE_DEVICES=',
+        sys.executable, 'worker.py',
+        '--num-workers', '1']
+
+    cmds_map = [wrap_cmd_for_tmux(session, "ps", base_cmd + ["--job-name", "ps"])]
+    conda_cmds_map = [wrap_cmd_for_tmux(session, "ps", conda_cmd)]
+    cmds_map += [wrap_cmd_for_tmux(session,
+                                   "w-0", base_cmd + ["--job-name", "worker", "--task", "0"])]
+    conda_cmds_map += [wrap_cmd_for_tmux(session, "w-0", conda_cmd)]
+
+    windows = [v[0] for v in cmds_map]
+
+    notes = []
+    cmds = [
+        "mkdir -p {}".format(get_config().log_dir),
+        "echo {} {} > {}/cmd.sh".format(sys.executable, ' '.join([shlex.quote(arg) for arg in sys.argv if arg != '-n']),
+                                        get_config().log_dir),
+    ]
+
+    notes += ["Use `tmux attach -t {}` to watch process output".format(session)]
+    notes += ["Use `tmux kill-session -t {}` to kill the job".format(session)]
+
+    cmds += [
+        "tmux kill-session -t {}".format(session),
+        "tmux new-session -s {} -n {} -d {}".format(session, windows[0], shell)
+    ]
+    for w in windows[1:]:
+        cmds += ["tmux new-window -t {} -n {} {}".format(session, w, shell)]
+    cmds += ["sleep 1"]
+
+    for window, cmd in conda_cmds_map:
+        cmds += [cmd]
+
+    first = True
+    for window, cmd in cmds_map:
+        cmds += [cmd]
+        if first:
+            cmds += ["sleep 5"]
+            first = False
+
+    return cmds, notes
+
+
 def start_nt_processes(num_workers, model_path):
     processes = []
     proc = subprocess.Popen([sys.executable, "worker.py", "--job-name", "ps", "--num-workers", str(num_workers)])
@@ -92,6 +139,16 @@ def start_nt_processes(num_workers, model_path):
     return processes
 
 
+def start_nt_validation_processes():
+    processes = []
+    proc = subprocess.Popen([sys.executable, "worker.py", "--job-name", "ps", "--num-workers", "1"])
+    processes.append(proc)
+    time.sleep(5)
+    proc = subprocess.Popen([sys.executable, "worker.py", "--task", "0", "--num-workers", "1"])
+    processes.append(proc)
+    return processes
+
+
 def stop_nt_processes(processes):
     for proc in processes:
         proc.kill()
@@ -99,8 +156,6 @@ def stop_nt_processes(processes):
 
 def copy_model(path, prev_path):
     weights_path = os.path.join(path, 'train')
-    if not os.path.exists(weights_path):
-        os.makedirs(weights_path)
     prev_weights_path = os.path.join(prev_path, 'train')
     if os.path.exists(prev_weights_path):
         print("Copying model from %s to %s" % (prev_path, path))
@@ -119,7 +174,7 @@ def train(num_workers, retrain_seed, costs_on, model_path):
     if os.name == 'nt':
         processes = start_nt_processes(num_workers, model_path)
     else:
-        cmds, notes = create_shell_commands("a3c", num_workers, model_path)
+        cmds, notes = create_train_shell_commands("a3c", num_workers, model_path)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
     wait_min = train_min
@@ -137,10 +192,29 @@ def train(num_workers, retrain_seed, costs_on, model_path):
     time.sleep(5)
 
 
+def validate():
+    if os.name == 'nt':
+        processes = start_nt_validation_processes()
+    else:
+        cmds, notes = create_validation_shell_commands("a3c")
+        os.environ["TMUX"] = ""
+        os.system("\n".join(cmds))
+    print("Waiting %d min for model to train" % validation_min)
+    time.sleep(60 * validation_min)
+    print("Stopping validation process")
+    if os.name == 'nt':
+        stop_nt_processes(processes)
+    else:
+        os.system("tmux kill-session -t a3c")
+    time.sleep(5)
+
+
 def cross_validation(dry_run):
     data = get_datasource()
     data_length = data.shape[0]
     max_seed = (data_length - get_config().ww - get_config().train_length) // get_config().retrain_interval
+    # TODO: remove next line when debug finished
+    max_seed = 1
     # train without costs
     for retrain_seed in range(max_seed + 1):
         print("Starting train at %d seed step" % retrain_seed)
@@ -148,10 +222,10 @@ def cross_validation(dry_run):
         # remove model in dry_run mode
         if dry_run:
             print("Dry run - removing model at %s" % model_path)
-            shutil.rmtree(model_path)
+            shutil.rmtree(model_path, ignore_errors=True)
         # if no model - copy prev model
         if not os.path.exists(model_path) and retrain_seed > 0:
-            prev_model_path = get_config().get_model_path(retrain_seed, False)
+            prev_model_path = get_config().get_model_path(retrain_seed - 1, False)
             copy_model(model_path, prev_model_path)
         # train model
         # prepare ini file
@@ -159,6 +233,25 @@ def cross_validation(dry_run):
         prepare_config(False, retrain_seed, False)
         print("Start training")
         train(num_workers, retrain_seed, False, model_path)
+    for retrain_seed in range(max_seed + 1):
+        print("Starting train with costs at %d seed step" % retrain_seed)
+        model_path = get_config().get_model_path(retrain_seed, True)
+        # remove model if exists - we always learn model with costs using prev model without costs
+        shutil.rmtree(model_path, ignore_errors=True)
+        # copy model without costs
+        prev_model_path = get_config().get_model_path(retrain_seed, False)
+        copy_model(model_path, prev_model_path)
+        # prepare ini file
+        print("Preparing nn.ini file")
+        prepare_config(False, retrain_seed, True)
+        print("Start training")
+        train(num_workers, retrain_seed, True, model_path)
+    for retrain_seed in range(max_seed + 1):
+        print("Starting validation at %d seed step" % retrain_seed)
+        model_path = get_config().get_model_path(retrain_seed, True)
+        print("Preparing nn.ini file")
+        prepare_config(True, retrain_seed, True)
+        validate(retrain_seed, model_path)
 
 
 if __name__ == "__main__":
