@@ -11,9 +11,9 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-train_min = 15.0
-inc_train_min = 15.0
-inc_costs_train_min = 15.0
+train_min = 30.0
+inc_train_min = 30.0
+inc_costs_train_min = 30.0
 validation_min = 1.5
 
 num_workers = None
