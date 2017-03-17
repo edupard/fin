@@ -11,10 +11,12 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-train_min = 60.0 * 0.5
-inc_train_min = 60.0 * 0.5
-inc_costs_train_min = 0.0
+train_min = 90
+costs_train_min = 30
 validation_min = 1.5
+
+train_min_a = [45, 45, 45]
+costs_train_min_a = []
 
 num_workers = 32
 if num_workers is None:
@@ -177,13 +179,20 @@ def train(num_workers, retrain_seed, costs_on, model_path):
         cmds, notes = create_train_shell_commands("a3c", num_workers, model_path)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
-    wait_min = train_min
-    if retrain_seed != 0:
-        wait_min = inc_train_min
+
     if costs_on:
-        wait_min = inc_costs_train_min
+        wait_min = costs_train_min
+        if retrain_seed < len(costs_train_min_a):
+            wait_min = costs_train_min[retrain_seed]
+    else:
+        wait_min = train_min
+        if retrain_seed < len(train_min_a):
+            wait_min = train_min_a[retrain_seed]
+
     print("Waiting %d min for model to train" % wait_min)
-    time.sleep(60 * wait_min)
+    for idx in range(round(wait_min)):
+        time.sleep(60)
+        print("%d min passed" % idx + 1)
     print("Stopping train process")
     if os.name == 'nt':
         stop_nt_processes(processes)
@@ -199,7 +208,7 @@ def validate():
         cmds, notes = create_validation_shell_commands("a3c")
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
-    print("Waiting %d min for model to validate" % validation_min)
+    print("Waiting %.2f min for model to validate" % validation_min)
     time.sleep(60 * validation_min)
     print("Stopping validation process")
     if os.name == 'nt':
