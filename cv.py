@@ -11,10 +11,10 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-start_seed = 1
+start_seed = 0
 
-train_min = 360
-costs_train_min = 30
+train_min = 180
+costs_train_min = 60
 validation_min = 1.5
 
 train_min_a = []

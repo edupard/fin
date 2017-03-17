@@ -236,6 +236,7 @@ should be computed.
             last_state = self.env.reset()
             last_features = self.local_network.get_initial_features()
 
+            all_rewards = 0.0
             rewards = 0.0
             length = 0
             while True:
@@ -248,6 +249,7 @@ should be computed.
                 if self.visualise:
                     self.env.render()
 
+                all_rewards += reward
                 if length > get_config().train_length:
                     rewards += reward
                 if length > get_config().train_length:
@@ -271,7 +273,7 @@ should be computed.
 
                 if terminal:
                     break
-            print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length - get_config().train_length))
+            print("Episode finished. Sum of rewards: %.3f. Cv period: %.3f Length: %d" % (all_rewards, rewards, length - get_config().train_length))
 
     def process(self, sess):
         sess.run(self.sync)  # copy weights from shared to local
