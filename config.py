@@ -100,7 +100,7 @@ class Config(object):
     retrain_seed = 0
 
     # Learning parameters
-    num_global_steps = 20e6
+    num_global_steps = 20e8
     algo_modification = True
     _lambda = 1.0
     gamma = 1.0

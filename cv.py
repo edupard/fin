@@ -11,12 +11,12 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-train_min = 30.0
-inc_train_min = 30.0
-inc_costs_train_min = 30.0
+train_min = 60.0 * 0.5
+inc_train_min = 60.0 * 0.5
+inc_costs_train_min = 0.0
 validation_min = 1.5
 
-num_workers = None
+num_workers = 32
 if num_workers is None:
     num_workers = multiprocessing.cpu_count()
 

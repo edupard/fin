@@ -255,7 +255,7 @@ class Environment:
         # overwrite start and end for evaluation mode
         if get_config().evaluation:
             self._ep_start_idx = start
-            self._ep_end_idx = min(start + get_config().train_length + get_config().retrain_interval, self._data_length)
+            self._ep_end_idx = min(start + get_config().train_length + get_config().retrain_interval, self._data_length - 1)
 
         self._info = Info()
         self._dd = None
