@@ -11,11 +11,13 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
+start_seed = 1
+
 train_min = 90
 costs_train_min = 30
 validation_min = 1.5
 
-train_min_a = [45, 45, 45]
+train_min_a = []
 costs_train_min_a = []
 
 num_workers = 32
@@ -227,6 +229,8 @@ def cross_validation(dry_run, skip_train, skip_costs_train, skip_validation):
     # train without costs
     if not skip_train:
         for retrain_seed in range(max_seed + 1):
+            if retrain_seed < start_seed:
+                continue
             print("Starting train at %d seed step" % retrain_seed)
             model_path = get_config().get_model_path(retrain_seed, False)
             # remove model in dry_run mode
@@ -245,6 +249,8 @@ def cross_validation(dry_run, skip_train, skip_costs_train, skip_validation):
             train(num_workers, retrain_seed, False, model_path)
     if not skip_costs_train:
         for retrain_seed in range(max_seed + 1):
+            if retrain_seed < start_seed:
+                continue
             print("Starting train with costs at %d seed step" % retrain_seed)
             model_path = get_config().get_model_path(retrain_seed, True)
             # remove model if exists - we always learn model with costs using prev model without costs
@@ -259,6 +265,8 @@ def cross_validation(dry_run, skip_train, skip_costs_train, skip_validation):
             train(num_workers, retrain_seed, True, model_path)
     if not skip_validation:
         for retrain_seed in range(max_seed + 1):
+            if retrain_seed < start_seed:
+                continue
             print("Starting validation at %d seed step" % retrain_seed)
             print("Preparing nn.ini file")
             prepare_config(True, retrain_seed, True)
