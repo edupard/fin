@@ -11,9 +11,9 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-start_seed = 1
+start_seed = 2
 
-train_min = 180
+train_min = 360
 costs_train_min = 30
 validation_min = 1.5
 
@@ -221,7 +221,7 @@ def validate():
     time.sleep(5)
 
 
-def cross_validation(dry_run, skip_train, skip_costs_train, skip_validation):
+def cross_validation(copy_weights, skip_train, skip_costs_train, skip_validation):
     data = get_datasource()
     data_length = data.shape[0]
     max_seed = (data_length - get_config().ww - get_config().train_length) // get_config().retrain_interval
@@ -235,11 +235,11 @@ def cross_validation(dry_run, skip_train, skip_costs_train, skip_validation):
             print("Starting train at %d seed step" % retrain_seed)
             model_path = get_config().get_model_path(retrain_seed, False)
             # remove model in dry_run mode
-            if dry_run:
-                print("Dry run - removing model at %s" % model_path)
-                shutil.rmtree(model_path, ignore_errors=True)
+            # if dry_run:
+            #     print("Dry run - removing model at %s" % model_path)
+            #     shutil.rmtree(model_path, ignore_errors=True)
             # if no model - copy prev model
-            if not os.path.exists(model_path) and retrain_seed > 0:
+            if copy_weights and not os.path.exists(model_path) and retrain_seed > 0:
                 prev_model_path = get_config().get_model_path(retrain_seed - 1, False)
                 copy_model(model_path, prev_model_path)
             # train model
@@ -278,9 +278,9 @@ def cross_validation(dry_run, skip_train, skip_costs_train, skip_validation):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('--dry-run', action='store_true', help="Dry run")
+    parser.add_argument('--copy-weights', action='store_true', help="Copy weights from previous model")
     parser.add_argument('--skip-train', action='store_true', help="Skip train step")
     parser.add_argument('--skip-costs-train', action='store_true', help="Skip train with costs step")
     parser.add_argument('--skip-validation', action='store_true', help="Skip validation step")
     args = parser.parse_args()
-    cross_validation(args.dry_run, args.skip_train, args.skip_costs_train, args.skip_validation)
+    cross_validation(args.copy_weights, args.skip_train, args.skip_costs_train, args.skip_validation)
