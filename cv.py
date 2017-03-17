@@ -13,7 +13,7 @@ from data_source.data_source import get_datasource
 
 start_seed = 1
 
-train_min = 90
+train_min = 180
 costs_train_min = 30
 validation_min = 1.5
 
