@@ -194,7 +194,8 @@ def train(num_workers, retrain_seed, costs_on, model_path):
     print("Waiting %d min for model to train" % wait_min)
     for idx in range(round(wait_min)):
         time.sleep(60)
-        print("%d min passed" % idx + 1)
+        min_passed = idx + 1
+        print("%d min passed" % min_passed)
     print("Stopping train process")
     if os.name == 'nt':
         stop_nt_processes(processes)
