@@ -92,10 +92,10 @@ class Config(object):
 
     # Episode parameters
     # train_length = 24 * 60 * 7 // bar_min
-    train_length = 3000
-    train_episode_length = train_length // 1
-    rand_start = False
-    retrain_interval = 1000
+    train_length = 10000
+    train_episode_length = train_length // 13
+    rand_start = True
+    retrain_interval = 5000
     evaluation = False
     retrain_seed = 0
 

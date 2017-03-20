@@ -10,7 +10,7 @@ import math
 import os
 import fnmatch
 
-draw_deals = False
+draw_deals = True
 # PL
 draw_ccy = True
 draw_ccy_c = False
@@ -19,8 +19,8 @@ draw_pct_c = False
 draw_lr = False
 draw_lr_c = False
 # NN
-draw_value = False
-draw_probabilities = False
+draw_value = True
+draw_probabilities = True
 
 subplots = 0
 

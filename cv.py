@@ -13,12 +13,15 @@ from data_source.data_source import get_datasource
 
 start_seed = 0
 
-train_min = 180
+train_min = 600
 costs_train_min = 60
 validation_min = 1.5
 
 train_min_a = []
 costs_train_min_a = []
+
+start_seed = 0
+stop_seed = 0
 
 num_workers = 32
 if num_workers is None:
@@ -224,12 +227,13 @@ def validate():
 def cross_validation(copy_weights, skip_train, skip_costs_train, skip_validation):
     data = get_datasource()
     data_length = data.shape[0]
-    max_seed = (data_length - get_config().ww - get_config().train_length) // get_config().retrain_interval
-    # TODO: remove next line when debug finished
-    # max_seed = 2
+    min_seed = start_seed
+    max_seed = stop_seed
+    if stop_seed is None:
+        max_seed = (data_length - get_config().ww - get_config().train_length) // get_config().retrain_interval
     # train without costs
     if not skip_train:
-        for retrain_seed in range(max_seed + 1):
+        for retrain_seed in range(min_seed, max_seed + 1):
             if retrain_seed < start_seed:
                 continue
             print("Starting train at %d seed step" % retrain_seed)
@@ -249,7 +253,7 @@ def cross_validation(copy_weights, skip_train, skip_costs_train, skip_validation
             print("Start training")
             train(num_workers, retrain_seed, False, model_path)
     if not skip_costs_train:
-        for retrain_seed in range(max_seed + 1):
+        for retrain_seed in range(min_seed, max_seed + 1):
             if retrain_seed < start_seed:
                 continue
             print("Starting train with costs at %d seed step" % retrain_seed)
@@ -265,12 +269,12 @@ def cross_validation(copy_weights, skip_train, skip_costs_train, skip_validation
             print("Start training")
             train(num_workers, retrain_seed, True, model_path)
     if not skip_validation:
-        for retrain_seed in range(max_seed + 1):
+        for retrain_seed in range(min_seed, max_seed + 1):
             if retrain_seed < start_seed:
                 continue
             print("Starting validation at %d seed step" % retrain_seed)
             print("Preparing nn.ini file")
-            prepare_config(True, retrain_seed, True)
+            prepare_config(True, retrain_seed, False)
             validate()
     if os.path.exists("nn.ini"):
         os.remove("nn.ini")
