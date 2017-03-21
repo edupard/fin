@@ -109,7 +109,7 @@ class Config(object):
     buffer_length = 20
     fwd_buffer_length = 20 if algo_modification else 0
     keep_prob = 0.5
-    rnn_size = 64
+    rnn_size = 16
     learning_rate = 0.0001
     enthropy_weight = 0.01
     num_conv_layers = 7
