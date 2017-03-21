@@ -65,8 +65,8 @@ def create_train_shell_commands(session, num_workers, model_path, train_seed, co
                                        "w-%d" % i, base_cmd + args)]
         conda_cmds_map += [wrap_cmd_for_tmux(session, "w-%d" % i, conda_cmd)]
 
-    conda_cmds_map += [wrap_cmd_for_tmux(session, "tb", conda_cmd)]
     if not cv:
+        conda_cmds_map += [wrap_cmd_for_tmux(session, "tb", conda_cmd)]
         cmds_map += [wrap_cmd_for_tmux(session, "tb", ["tensorboard", "--logdir", model_path, "--port", "12345"])]
     cmds_map += [wrap_cmd_for_tmux(session, "htop", ["htop"])]
 
