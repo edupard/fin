@@ -13,7 +13,7 @@ from data_source.data_source import get_datasource
 
 train_min = 600
 costs_train_min = 60
-validation_min = 1.0
+validation_min = 1.5
 
 train_min_a = []
 costs_train_min_a = []
@@ -223,9 +223,9 @@ def train_model(num_workers, train_seed, costs, model_path):
 
 def cross_validate(train_seed, model_path):
     if is_widows_os():
-        processes, workers = start_nt_processes(1, model_path, train_seed, True, True)
+        processes, workers = start_nt_processes(1, model_path, train_seed, False, True)
     else:
-        cmds, notes = create_train_shell_commands("a3c", num_workers, model_path, train_seed, True, True)
+        cmds, notes = create_train_shell_commands("a3c", num_workers, model_path, train_seed, False, True)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
     if is_widows_os():
@@ -281,10 +281,10 @@ def main(copy_weights, train, costs, cv):
     if cv:
         for train_seed in range(min_seed_idx, max_seed):
             model_path = get_config().get_model_path(train_seed, True)
-            if not costs:
-                no_costs_model_path = get_config().get_model_path(train_seed, False)
-                shutil.rmtree(model_path, ignore_errors=True)
-                copy_model(model_path, no_costs_model_path)
+            # if not costs:
+            #     no_costs_model_path = get_config().get_model_path(train_seed, False)
+            #     shutil.rmtree(model_path, ignore_errors=True)
+            #     copy_model(model_path, no_costs_model_path)
             if train_seed < start_seed_idx:
                 continue
             print("Starting validation at %d seed step" % train_seed)
