@@ -21,7 +21,16 @@ costs_train_min_a = []
 start_seed_idx = 0
 stop_seed_idx = 0
 
+
+def is_widows_os():
+    if os.name == 'nt':
+        return True
+    return False
+
+
 num_workers = 32
+if is_widows_os():
+    num_workers = None
 if num_workers is None:
     num_workers = multiprocessing.cpu_count()
 
@@ -180,12 +189,6 @@ def copy_model(path, prev_path):
     if os.path.exists(prev_weights_path):
         print("Copying model from %s to %s" % (prev_path, path))
         shutil.copytree(prev_weights_path, weights_path)
-
-
-def is_widows_os():
-    if os.name == 'nt':
-        return True
-    return False
 
 
 def train_model(num_workers, train_seed, costs, model_path):
