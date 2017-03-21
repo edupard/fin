@@ -13,7 +13,7 @@ from data_source.data_source import get_datasource
 
 train_min = 600
 costs_train_min = 60
-validation_min = 1.5
+validation_min = 2.5
 
 train_min_a = []
 costs_train_min_a = []
