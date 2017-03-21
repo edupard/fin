@@ -19,7 +19,7 @@ train_min_a = []
 costs_train_min_a = []
 
 start_seed_idx = 0
-stop_seed_idx = None
+stop_seed_idx = 0
 
 num_workers = None
 if num_workers is None:

@@ -63,11 +63,14 @@ class LSTMPolicy(object):
         # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
         x = tf.expand_dims(flatten(x), [0])
 
-        size = 256
+        size = get_config().rnn_size
+
         lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
         # keep_prob = tf.placeholder(tf.float32)
-        # lstm = tf.nn.rnn_cell.DropoutWrapper(
-        #   lstm, input_keep_prob=keep_prob, output_keep_prob=keep_prob)
+        if not get_config().cv:
+            keep_prob = get_config().keep_prob
+            lstm = tf.nn.rnn_cell.DropoutWrapper(
+                lstm, input_keep_prob=keep_prob, output_keep_prob=keep_prob)
         self.state_size = lstm.state_size
         step_size = tf.shape(self.x)[:1]
 

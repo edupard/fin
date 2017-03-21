@@ -94,8 +94,8 @@ class Config(object):
 
     # Episode parameters
     cv = False
-    train_length = 10000 // 13
-    train_episode_length = 10000 // 13
+    train_length = 3000
+    train_episode_length = train_length
     # train_length = 10000
     # train_episode_length = train_length // 13
     retrain_interval = train_episode_length
@@ -108,6 +108,8 @@ class Config(object):
     gamma = 1.0
     buffer_length = 20
     fwd_buffer_length = 20 if algo_modification else 0
+    keep_prob = 0.5
+    rnn_size = 255
     learning_rate = 0.0001
     enthropy_weight = 0.01
     num_conv_layers = 6
