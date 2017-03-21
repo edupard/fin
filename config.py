@@ -109,10 +109,10 @@ class Config(object):
     buffer_length = 20
     fwd_buffer_length = 20 if algo_modification else 0
     keep_prob = 0.5
-    rnn_size = 255
+    rnn_size = 64
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    num_conv_layers = 6
+    num_conv_layers = 7
     max_grad_norm = 40.0
 
     def get_model_path(self, train_seed, costs):
