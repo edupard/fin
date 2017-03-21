@@ -85,7 +85,7 @@ once it has processed enough steps.
 
 
 class A3C(object):
-    def __init__(self, env, task, summary_writer, visualise):
+    def __init__(self, env, task, summary_writer):
         """
 An implementation of the A3C algorithm that is reasonably well-tuned for the VNC environments.
 Below, we will have a modest amount of complexity due to the way TensorFlow handles data parallelism.
@@ -96,7 +96,6 @@ should be computed.
         self.env = env
         self.task = task
         self.summary_writer = summary_writer
-        self.visualise = visualise
 
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
@@ -177,7 +176,7 @@ should be computed.
                 # argmax to convert from one-hot
                 a = action.argmax()
                 state, reward, terminal, info = self.env.step(a)
-                if self.visualise:
+                if get_config().render:
                     self.env.render()
 
                 # collect the experience
@@ -224,56 +223,71 @@ should be computed.
                     break
                     # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
 
-    def evaluate(self, sess):
+    def cross_validate(self, sess):
         sess.run(self.sync)
-        folder_path = os.path.join('results', get_config().model)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        file_path = os.path.join(folder_path, '{}.csv'.format(get_config().retrain_seed))
-        with open(file_path, 'w') as f:
-            writer = csv.writer(f, dialect='data')
+        cv_folder_path = os.path.join('results', get_config().model, 'cv')
+        train_folder_path = os.path.join('results', get_config().model, 'train')
+        if not os.path.exists(cv_folder_path):
+            os.makedirs(cv_folder_path)
+        if not os.path.exists(train_folder_path):
+            os.makedirs(train_folder_path)
+        cv_file_path = os.path.join(cv_folder_path, '{}.csv'.format(get_config().train_seed))
+        train_file_path = os.path.join(train_folder_path, '{}.csv'.format(get_config().train_seed))
+        with open(cv_file_path, 'w') as cv_f, open(train_file_path, 'w') as train_f:
+            cv_writer = csv.writer(cv_f, dialect='data')
+            train_writer = csv.writer(train_f, dialect='data')
 
             last_state = self.env.reset()
             last_features = self.local_network.get_initial_features()
 
-            all_rewards = 0.0
-            rewards = 0.0
-            length = 0
+            train_rewards = 0.0
+            cv_rewards = 0.0
+            t_l = 0
+            cv_l = 0
+            train_length = get_config().train_length
+
             while True:
                 fetched = self.local_network.act(last_state, *last_features)
                 action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
 
                 a = action.argmax()
                 state, reward, terminal, info = self.env.step(a)
-                length += 1
-                if self.visualise:
+                if get_config().render:
                     self.env.render()
 
-                all_rewards += reward
-                if length > get_config().train_length:
-                    rewards += reward
-                if length > get_config().train_length:
-                    row = [info.time,
-                           info.price,
-                           info.next_time,
-                           info.next_price,
-                           info.ccy,
-                           info.ccy_c,
-                           info.pct,
-                           info.pct_c,
-                           info.lr,
-                           info.lr_c,
-                           a]
-                    row.extend(value_)
-                    row.extend(action_distribution.reshape((-1)))
-                    writer.writerow(row)
+                train_step = t_l <= train_length
+                if train_step:
+                    t_l += 1
+                    train_rewards += reward
+                else:
+                    cv_l += 1
+                    cv_rewards += reward
+
+                row = [info.time,
+                       info.price,
+                       info.next_time,
+                       info.next_price,
+                       info.ccy,
+                       info.ccy_c,
+                       info.pct,
+                       info.pct_c,
+                       info.lr,
+                       info.lr_c,
+                       a]
+                row.extend(value_)
+                row.extend(action_distribution.reshape((-1)))
+                if train_step:
+                    train_writer.writerow(row)
+                else:
+                    cv_writer.writerow(row)
 
                 last_state = state
                 last_features = features
 
                 if terminal:
                     break
-            print("Episode finished. Sum of rewards: %.3f. Cv period: %.3f Length: %d" % (all_rewards, rewards, length - get_config().train_length))
+            print("Episode finished. Train rewards: %.3f. Cv rewards: %.3f Train length: %d Cv length: %d" % (
+                train_rewards, cv_rewards, t_l, cv_l))
 
     def process(self, sess):
         sess.run(self.sync)  # copy weights from shared to local

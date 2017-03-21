@@ -9,8 +9,9 @@ import numpy as np
 import math
 import os
 import fnmatch
+import argparse
 
-draw_deals = True
+draw_deals = False
 # PL
 draw_ccy = True
 draw_ccy_c = False
@@ -54,10 +55,15 @@ def create_axis(fig, shared_ax, id, y_fmt_str):
     return ax
 
 
-def main():
-    folder_path = os.path.join('results', get_config().model)
+def visualize(data_folder_name):
+    folder_path = os.path.join('results', get_config().model, data_folder_name)
     files = fnmatch.filter(os.listdir(folder_path), '*.csv')
-    files.sort()
+
+    def extract_index(file_name):
+        s_idx = file_name.split('.')[0]
+        return int(s_idx)
+
+    files = sorted(files, key=lambda x: extract_index(x))
     t_a = []
     p_a = []
     n_t_a = []
@@ -76,6 +82,8 @@ def main():
     for file_name in files:
         file_path = os.path.join(folder_path, file_name)
         results = np.genfromtxt(file_path, delimiter=',', dtype=np.float64)
+        if results.shape[0] == 0:
+            continue
         col_idx = 0
         t_a.append(results[:, col_idx].reshape((-1)))
         col_idx += 1
@@ -209,9 +217,20 @@ def main():
     subplot_idx += 1
     p_ax = create_axis(fig, None, subplot_idx, '%.2f')
     last_axes = p_ax
-    p_ax.set_title("Sharp ratio: %.3f" % sharp_ratio)
+    p_ax.set_title("%s Sharp ratio: %.3f" % (data_folder_name.upper(), sharp_ratio))
     px, px_t = extract_data_axes(make_step_line(mpl_t, p))
     p_ax.plot_date(px_t, px, color='b', fmt='-')
+
+    iteration = 1
+    idx = 0
+    for v_a in t_a:
+        _t_a = [mpl_t[idx], mpl_t[idx]]
+        min_px = np.min(p)
+        max_px = np.max(p)
+        _y_a = [min_px, max_px]
+        p_ax.plot_date(_t_a, _y_a, color='r', fmt='--')
+        idx += v_a.shape[0]
+        iteration += 1
 
     deals = 0
     for (ent_t, ent_px, exit_t, exit_px, pl_positive, state) in generate_deals():
@@ -306,8 +325,14 @@ def main():
     check_and_hide_time(v_ax)
     check_and_hide_time(prob_ax)
 
-    plt.show(True)
-
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description=None)
+    parser.add_argument('--train', action='store_true', help="draw train period")
+    parser.add_argument('--cv', action='store_true', help="draw cv period")
+    args = parser.parse_args()
+    if args.cv:
+        visualize('cv')
+    if args.train:
+        visualize('train')
+    plt.show(True)

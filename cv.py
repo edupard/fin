@@ -11,19 +11,17 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-start_seed = 0
-
 train_min = 600
 costs_train_min = 60
-validation_min = 1.5
+validation_min = 1.0
 
 train_min_a = []
 costs_train_min_a = []
 
-start_seed = 0
-stop_seed = 0
+start_seed_idx = 0
+stop_seed_idx = None
 
-num_workers = 32
+num_workers = None
 if num_workers is None:
     num_workers = multiprocessing.cpu_count()
 
@@ -35,22 +33,32 @@ def wrap_cmd_for_tmux(session, window, cmd):
     return window, "tmux send-keys -t {}:{} {} Enter".format(session, window, shlex.quote(cmd))
 
 
-def create_train_shell_commands(session, num_workers, model_path, shell='bash'):
+def create_train_shell_commands(session, num_workers, model_path, train_seed, costs, cv, shell='bash'):
     conda_cmd = ['source', 'activate', 'rl_fin']
     base_cmd = [
         'CUDA_VISIBLE_DEVICES=',
-        sys.executable, 'worker.py',
+        sys.executable,
+        'worker.py',
         '--num-workers', str(num_workers)]
 
     cmds_map = [wrap_cmd_for_tmux(session, "ps", base_cmd + ["--job-name", "ps"])]
     conda_cmds_map = [wrap_cmd_for_tmux(session, "ps", conda_cmd)]
     for i in range(num_workers):
+        args = ["--job-name", "worker",
+                "--task", str(i),
+                "--seed", str(train_seed)]
+        if costs:
+            args += ["--costs"]
+        if cv:
+            args += ["--cv"]
+
         cmds_map += [wrap_cmd_for_tmux(session,
-                                       "w-%d" % i, base_cmd + ["--job-name", "worker", "--task", str(i)])]
+                                       "w-%d" % i, base_cmd + args)]
         conda_cmds_map += [wrap_cmd_for_tmux(session, "w-%d" % i, conda_cmd)]
 
     conda_cmds_map += [wrap_cmd_for_tmux(session, "tb", conda_cmd)]
-    cmds_map += [wrap_cmd_for_tmux(session, "tb", ["tensorboard", "--logdir", model_path, "--port", "12345"])]
+    if not cv:
+        cmds_map += [wrap_cmd_for_tmux(session, "tb", ["tensorboard", "--logdir", model_path, "--port", "12345"])]
     cmds_map += [wrap_cmd_for_tmux(session, "htop", ["htop"])]
 
     windows = [v[0] for v in cmds_map]
@@ -133,27 +141,32 @@ def create_validation_shell_commands(session, shell='bash'):
     return cmds, notes
 
 
-def start_nt_processes(num_workers, model_path):
+def start_nt_processes(num_workers, model_path, train_seed, costs, cv):
     processes = []
+    workers = []
     proc = subprocess.Popen([sys.executable, "worker.py", "--job-name", "ps", "--num-workers", str(num_workers)])
     processes.append(proc)
     time.sleep(5)
     for idx in range(num_workers):
-        proc = subprocess.Popen([sys.executable, "worker.py", "--task", str(idx), "--num-workers", str(num_workers)])
+        args = [sys.executable,
+                "worker.py",
+                "--task", str(idx),
+                "--num-workers", str(num_workers),
+                "--seed", str(train_seed)
+                ]
+        if costs:
+            args += ["--costs"]
+        if cv:
+            args += ["--cv"]
+        proc = subprocess.Popen(args)
         processes.append(proc)
-    proc = subprocess.Popen(["tensorboard.exe", "--logdir", model_path, "--port", "12345"])
-    processes.append(proc)
-    return processes
-
-
-def start_nt_validation_processes():
-    processes = []
-    proc = subprocess.Popen([sys.executable, "worker.py", "--job-name", "ps", "--num-workers", "1"])
-    processes.append(proc)
-    time.sleep(5)
-    proc = subprocess.Popen([sys.executable, "worker.py", "--task", "0", "--num-workers", "1"])
-    processes.append(proc)
-    return processes
+        workers.append(proc)
+    if not cv:
+        proc = subprocess.Popen(["tensorboard.exe",
+                                 "--logdir", model_path,
+                                 "--port", "12345"])
+        processes.append(proc)
+    return processes, workers
 
 
 def stop_nt_processes(processes):
@@ -169,30 +182,28 @@ def copy_model(path, prev_path):
         shutil.copytree(prev_weights_path, weights_path)
 
 
-def prepare_config(evaluation, retrain_seed, costs_on):
-    with open("nn.ini", "w") as text_file:
-        text_file.writelines(['[DEFAULT]\n',
-                              'evaluation = {}\n'.format('yes' if evaluation else 'no'),
-                              'retrain_seed = {}\n'.format(retrain_seed),
-                              'costs_on = {}\n'.format('yes' if costs_on else 'no')])
-
-
-def train(num_workers, retrain_seed, costs_on, model_path):
+def is_widows_os():
     if os.name == 'nt':
-        processes = start_nt_processes(num_workers, model_path)
+        return True
+    return False
+
+
+def train_model(num_workers, train_seed, costs, model_path):
+    if is_widows_os():
+        processes = start_nt_processes(num_workers, model_path, train_seed, costs, False)
     else:
-        cmds, notes = create_train_shell_commands("a3c", num_workers, model_path)
+        cmds, notes = create_train_shell_commands("a3c", num_workers, model_path, train_seed, costs, False)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
 
-    if costs_on:
+    if costs:
         wait_min = costs_train_min
-        if retrain_seed < len(costs_train_min_a):
-            wait_min = costs_train_min[retrain_seed]
+        if train_seed < len(costs_train_min_a):
+            wait_min = costs_train_min[train_seed]
     else:
         wait_min = train_min
-        if retrain_seed < len(train_min_a):
-            wait_min = train_min_a[retrain_seed]
+        if train_seed < len(train_min_a):
+            wait_min = train_min_a[train_seed]
 
     print("Waiting %d min for model to train" % wait_min)
     for idx in range(round(wait_min)):
@@ -200,91 +211,90 @@ def train(num_workers, retrain_seed, costs_on, model_path):
         min_passed = idx + 1
         print("%d min passed" % min_passed)
     print("Stopping train process")
-    if os.name == 'nt':
+    if is_widows_os():
         stop_nt_processes(processes)
     else:
         os.system("tmux kill-session -t a3c")
     time.sleep(5)
 
 
-def validate():
-    if os.name == 'nt':
-        processes = start_nt_validation_processes()
+def cross_validate(train_seed, model_path):
+    if is_widows_os():
+        processes, workers = start_nt_processes(1, model_path, train_seed, False, True)
     else:
-        cmds, notes = create_validation_shell_commands("a3c")
+        cmds, notes = create_train_shell_commands("a3c", num_workers, model_path, train_seed, True, True)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
-    print("Waiting %.2f min for model to validate" % validation_min)
-    time.sleep(60 * validation_min)
-    print("Stopping validation process")
-    if os.name == 'nt':
+    if is_widows_os():
+        print("Waiting for model to validate")
+        for w in workers:
+            w.wait()
+    else:
+        print("Waiting %.2f min for model to validate" % validation_min)
+        time.sleep(60 * validation_min)
+        print("Stopping validation process")
+    if is_widows_os():
         stop_nt_processes(processes)
     else:
         os.system("tmux kill-session -t a3c")
     time.sleep(5)
 
 
-def cross_validation(copy_weights, skip_train, skip_costs_train, skip_validation):
+def main(copy_weights, train, costs, cv):
     data = get_datasource()
     data_length = data.shape[0]
-    min_seed = start_seed
-    max_seed = stop_seed
-    if stop_seed is None:
-        max_seed = (data_length - get_config().ww - get_config().train_length) // get_config().retrain_interval
+    min_seed = start_seed_idx
+    max_seed = stop_seed_idx
+    if stop_seed_idx is None:
+        max_seed = (data_length - get_config().ww) // get_config().retrain_interval
     # train without costs
-    if not skip_train:
-        for retrain_seed in range(min_seed, max_seed + 1):
-            if retrain_seed < start_seed:
+    if train:
+        for train_seed in range(min_seed, max_seed):
+            if train_seed < start_seed_idx:
                 continue
-            print("Starting train at %d seed step" % retrain_seed)
-            model_path = get_config().get_model_path(retrain_seed, False)
-            # remove model in dry_run mode
-            # if dry_run:
-            #     print("Dry run - removing model at %s" % model_path)
-            #     shutil.rmtree(model_path, ignore_errors=True)
+            print("Starting train at %d train seed" % train_seed)
+            model_path = get_config().get_model_path(train_seed, False)
             # if no model - copy prev model
-            if copy_weights and not os.path.exists(model_path) and retrain_seed > 0:
-                prev_model_path = get_config().get_model_path(retrain_seed - 1, False)
+            if copy_weights and not os.path.exists(model_path) and train_seed > 0:
+                prev_model_path = get_config().get_model_path(train_seed - 1, False)
                 copy_model(model_path, prev_model_path)
             # train model
             # prepare ini file
-            print("Preparing nn.ini file")
-            prepare_config(False, retrain_seed, False)
             print("Start training")
-            train(num_workers, retrain_seed, False, model_path)
-    if not skip_costs_train:
-        for retrain_seed in range(min_seed, max_seed + 1):
-            if retrain_seed < start_seed:
+            train_model(num_workers, train_seed, False, model_path)
+    if costs:
+        for train_seed in range(min_seed, max_seed):
+            if train_seed < start_seed_idx:
                 continue
-            print("Starting train with costs at %d seed step" % retrain_seed)
-            model_path = get_config().get_model_path(retrain_seed, True)
+            print("Starting train with costs at %d seed step" % train_seed)
+            model_path = get_config().get_model_path(train_seed, True)
             # remove model if exists - we always learn model with costs using prev model without costs
             shutil.rmtree(model_path, ignore_errors=True)
             # copy model without costs
-            prev_model_path = get_config().get_model_path(retrain_seed, False)
+            prev_model_path = get_config().get_model_path(train_seed, False)
             copy_model(model_path, prev_model_path)
-            # prepare ini file
-            print("Preparing nn.ini file")
-            prepare_config(False, retrain_seed, True)
             print("Start training")
-            train(num_workers, retrain_seed, True, model_path)
-    if not skip_validation:
-        for retrain_seed in range(min_seed, max_seed + 1):
-            if retrain_seed < start_seed:
+            train_model(num_workers, train_seed, True, model_path)
+    if cv:
+        for train_seed in range(min_seed, max_seed):
+            model_path = get_config().get_model_path(train_seed, True)
+            if not costs:
+                no_costs_model_path = get_config().get_model_path(train_seed, False)
+                shutil.rmtree(model_path, ignore_errors=True)
+                copy_model(model_path, no_costs_model_path)
+            if train_seed < start_seed_idx:
                 continue
-            print("Starting validation at %d seed step" % retrain_seed)
-            print("Preparing nn.ini file")
-            prepare_config(True, retrain_seed, False)
-            validate()
+            print("Starting validation at %d seed step" % train_seed)
+            cross_validate(train_seed, model_path)
     if os.path.exists("nn.ini"):
         os.remove("nn.ini")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('--copy-weights', action='store_true', help="Copy weights from previous model")
-    parser.add_argument('--skip-train', action='store_true', help="Skip train step")
-    parser.add_argument('--skip-costs-train', action='store_true', help="Skip train with costs step")
-    parser.add_argument('--skip-validation', action='store_true', help="Skip validation step")
+    parser.add_argument('--copy', action='store_true', help="Copy weights from previous model")
+    parser.add_argument('--train', action='store_true', help="Skip train step")
+    parser.add_argument('--costs', action='store_true', help="Skip train with costs step")
+    parser.add_argument('--cv', action='store_true', help="Skip validation step")
     args = parser.parse_args()
-    cross_validation(args.copy_weights, args.skip_train, args.skip_costs_train, args.skip_validation)
+    main(args.copy, args.train, args.costs, args.cv)

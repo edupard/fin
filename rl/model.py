@@ -65,6 +65,9 @@ class LSTMPolicy(object):
 
         size = 256
         lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
+        # keep_prob = tf.placeholder(tf.float32)
+        # lstm = tf.nn.rnn_cell.DropoutWrapper(
+        #   lstm, input_keep_prob=keep_prob, output_keep_prob=keep_prob)
         self.state_size = lstm.state_size
         step_size = tf.shape(self.x)[:1]
 

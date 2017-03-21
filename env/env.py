@@ -242,20 +242,21 @@ class Environment:
             get_ui_thread().start_env(self)
             self._initialized = True
 
-        start = get_config().ww + get_config().retrain_interval * get_config().retrain_seed
-        end = start + get_config().train_length
-        if end > self._data_length:
+        start = get_config().ww + get_config().retrain_interval * get_config().train_seed
+        # For train loop we must lie inside data
+        if not get_config().cv and start + get_config().train_episode_length > self._data_length:
             raise "train interval lie outside of availiable data"
 
-        self._ep_start_idx = start
-        if get_config().rand_start:
-            self._ep_start_idx = np.random.randint(start,
-                                                   high=start + get_config().train_length - get_config().train_episode_length + 1)
+        self._ep_start_idx = np.random.randint(start,
+                                               high=start + get_config().train_length - get_config().train_episode_length + 1)
         self._ep_end_idx = self._ep_start_idx + get_config().train_episode_length
         # overwrite start and end for evaluation mode
-        if get_config().evaluation:
+        if get_config().cv:
             self._ep_start_idx = start
-            self._ep_end_idx = min(start + get_config().train_length + get_config().retrain_interval, self._data_length - 1)
+            self._ep_end_idx = min(start + get_config().train_episode_length + get_config().retrain_interval,
+                                   self._data_length - 1)
+            # self._ep_end_idx = min(start + get_config().train_length + get_config().retrain_interval,
+            #                        self._data_length - 1)
 
         self._info = Info()
         self._dd = None

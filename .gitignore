@@ -4,3 +4,4 @@
 /models
 /eq
 /results
+*.pyc

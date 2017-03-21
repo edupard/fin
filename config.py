@@ -83,21 +83,23 @@ class Config(object):
     reward_type = RewardType.URPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
-    costs_ccy = 0.03
+    costs_effective = 0.03
     costs_on = False
-    costs = 0.0 if not costs_on else costs_ccy
+    costs = 0.0
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
     reward_scale_multiplier = 100.0
 
+    render = False
+
     # Episode parameters
-    # train_length = 24 * 60 * 7 // bar_min
-    train_length = 10000
-    train_episode_length = train_length // 13
-    rand_start = True
-    retrain_interval = 5000
-    evaluation = False
-    retrain_seed = 0
+    cv = False
+    train_length = 10000 // 13
+    train_episode_length = 10000 // 13
+    # train_length = 10000
+    # train_episode_length = train_length // 13
+    retrain_interval = train_episode_length
+    train_seed = 0
 
     # Learning parameters
     num_global_steps = 20e8
@@ -111,24 +113,28 @@ class Config(object):
     num_conv_layers = 6
     max_grad_norm = 40.0
 
-    def get_model_path(self, retrain_seed, costs_on):
-        return os.path.join(self.base_log_dir, str(retrain_seed), 'costs' if costs_on else 'no_costs')
+    def get_model_path(self, train_seed, costs):
+        return os.path.join(self.base_log_dir, str(train_seed), 'costs' if costs else 'no_costs')
+
+    def turn_on_costs(self):
+        self.costs_on = True
+        self.costs = self.costs_effective
+        self.reset_log_dir()
+
+    def turn_on_cv(self):
+        self.cv = True
+
+    def set_train_seed(self, train_seed):
+        self.train_seed = train_seed
+        self.reset_log_dir()
+
+    def reset_log_dir(self):
+        self.log_dir = self.get_model_path(self.train_seed, self.costs_on)
+
+    def turn_on_render(self):
+        self.render = True
 
     def __init__(self):
-        # overwrite some values if nn.ini found
-        config = configparser.ConfigParser()
-        try:
-            config.read('nn.ini')
-            configSection = config['DEFAULT']
-
-            self.evaluation = bool(strtobool(configSection['evaluation']))
-            self.retrain_seed = int(configSection['retrain_seed'])
-            self.costs_on = bool(strtobool(configSection['costs_on']))
-            self.costs = 0.0 if not self.costs_on else self.costs_ccy
-        except:
-            pass
-        self.log_dir = self.get_model_path(self.retrain_seed, self.costs_on)
-
         self.b_gamma = np.zeros((self.fwd_buffer_length))
         self.b_gamma_lambda = np.zeros((self.fwd_buffer_length))
         acc_gamma = 1
@@ -138,6 +144,7 @@ class Config(object):
             self.b_gamma_lambda[i] = acc_gamma_lambda
             acc_gamma *= self.gamma
             acc_gamma_lambda *= self.gamma * self._lambda
+        self.reset_log_dir()
 
 
 _config = Config()

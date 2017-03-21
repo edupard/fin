@@ -8,7 +8,11 @@ from config import get_config
 from data_source.data_source import get_datasource
 from env.buttons import get_buttons
 
+
 def main():
+    get_config().set_train_seed(0)
+    get_config().turn_on_costs()
+
     startup()
 
     env = create_env()
@@ -55,7 +59,8 @@ def main():
             if r != 0:
                 print('Cum reward: {:.3f} reward: {:.3f}'.format(t_r, r))
             idx += 1
-        print('long deals: {} length: {} short deals: {} length: {}'.format(i.long, i.long_length, i.short, i.short_length))
+        print('long deals: {} length: {} short deals: {} length: {}'.format(i.long, i.long_length, i.short,
+                                                                            i.short_length))
         round_length = idx
         eq = eq[:round_length]
         plt.plot(eq)
@@ -66,6 +71,7 @@ def main():
     stop_env(env)
 
     shutdown()
+
 
 if __name__ == '__main__':
     main()

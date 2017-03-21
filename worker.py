@@ -29,7 +29,7 @@ def run(args, server):
     logdir = os.path.join(get_config().log_dir, 'train')
     summary_writer = tf.summary.FileWriter(logdir + "_%d" % args.task)
 
-    trainer = A3C(env, args.task, summary_writer, args.visualise)
+    trainer = A3C(env, args.task, summary_writer)
 
     # Variable names that start with "local" are not saved in checkpoints.
     variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
@@ -67,12 +67,12 @@ def run(args, server):
     with sv.managed_session(server.target, config=config) as sess, sess.as_default():
         sess.run(trainer.sync)
         global_step = sess.run(trainer.global_step)
-        if get_config().evaluation:
-            logger.info("Starting evaluation at step=%d", global_step)
+        if get_config().cv:
+            logger.info("Starting cv at step=%d", global_step)
         else:
             logger.info("Starting training at step=%d", global_step)
-        if get_config().evaluation:
-            trainer.evaluate(sess)
+        if get_config().cv:
+            trainer.cross_validate(sess)
         else:
             while not sv.should_stop() and global_step < get_config().num_global_steps:
                 trainer.process(sess)
@@ -80,8 +80,8 @@ def run(args, server):
 
     # Ask for all the services to stop.
     sv.stop()
-    if get_config().evaluation:
-        logger.info('evaluation complete. worker stopped.')
+    if get_config().cv:
+        logger.info('cv complete. worker stopped.')
     else:
         logger.info('reached %s steps. worker stopped.', global_step)
     stop_env(env)
@@ -119,9 +119,20 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--task', default=0, type=int, help='Task index')
     parser.add_argument('--job-name', default="worker", help='worker or ps')
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
-    parser.add_argument('--visualise', action='store_true', help="Visualise")
-
+    parser.add_argument('--seed', default=0, type=int, help='Train seed')
+    parser.add_argument('--render', action='store_true', help="Render environment")
+    parser.add_argument('--costs', action='store_true', help="Turn on costs")
+    parser.add_argument('--cv', action='store_true', help="Cross validation mode")
     args = parser.parse_args()
+
+    get_config().set_train_seed(args.seed)
+    if args.render:
+        get_config().turn_on_render()
+    if args.costs:
+        get_config().turn_on_costs()
+    if args.cv:
+        get_config().turn_on_cv()
+
     spec = cluster_spec(args.num_workers, 1)
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
 
