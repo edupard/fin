@@ -94,7 +94,7 @@ class Config(object):
 
     # Episode parameters
     cv = False
-    train_length = 3000
+    train_length = 6000
     train_episode_length = train_length
     # train_length = 10000
     # train_episode_length = train_length // 13
