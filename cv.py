@@ -21,7 +21,7 @@ costs_train_min_a = []
 start_seed_idx = 0
 stop_seed_idx = 0
 
-num_workers = None
+num_workers = 32
 if num_workers is None:
     num_workers = multiprocessing.cpu_count()
 
@@ -220,7 +220,7 @@ def train_model(num_workers, train_seed, costs, model_path):
 
 def cross_validate(train_seed, model_path):
     if is_widows_os():
-        processes, workers = start_nt_processes(1, model_path, train_seed, False, True)
+        processes, workers = start_nt_processes(1, model_path, train_seed, True, True)
     else:
         cmds, notes = create_train_shell_commands("a3c", num_workers, model_path, train_seed, True, True)
         os.environ["TMUX"] = ""
