@@ -10,4 +10,4 @@ git checkout -b exp-1
 
 tmux new-session -s cv -n mgr -d bash
 tmux send-keys -t cv:mgr 'source activate rl_fin' Enter
-tmux send-keys -t cv:mgr 'python cv.py' Enter
+tmux send-keys -t cv:mgr 'python cv.py --train --costs --cv' Enter

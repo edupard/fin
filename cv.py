@@ -246,13 +246,13 @@ def cross_validate(train_seed, model_path):
 def main(copy_weights, train, costs, cv):
     data = get_datasource()
     data_length = data.shape[0]
-    min_seed = start_seed_idx
-    max_seed = stop_seed_idx
+    min_seed_idx = start_seed_idx
+    max_seed = stop_seed_idx + 1
     if stop_seed_idx is None:
         max_seed = (data_length - get_config().ww) // get_config().retrain_interval
     # train without costs
     if train:
-        for train_seed in range(min_seed, max_seed):
+        for train_seed in range(min_seed_idx, max_seed):
             if train_seed < start_seed_idx:
                 continue
             print("Starting train at %d train seed" % train_seed)
@@ -266,7 +266,7 @@ def main(copy_weights, train, costs, cv):
             print("Start training")
             train_model(num_workers, train_seed, False, model_path)
     if costs:
-        for train_seed in range(min_seed, max_seed):
+        for train_seed in range(min_seed_idx, max_seed):
             if train_seed < start_seed_idx:
                 continue
             print("Starting train with costs at %d seed step" % train_seed)
@@ -279,7 +279,7 @@ def main(copy_weights, train, costs, cv):
             print("Start training")
             train_model(num_workers, train_seed, True, model_path)
     if cv:
-        for train_seed in range(min_seed, max_seed):
+        for train_seed in range(min_seed_idx, max_seed):
             model_path = get_config().get_model_path(train_seed, True)
             if not costs:
                 no_costs_model_path = get_config().get_model_path(train_seed, False)
