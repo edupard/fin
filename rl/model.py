@@ -61,8 +61,13 @@ class LSTMPolicy(object):
         if get_config().environment == EnvironmentType.PONG or get_config().state_mode == StateMode.TWO_D:
             for i in range(n_l):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
+        x = flatten(x)
+        self.pos = tf.placeholder(tf.float32, [None, 1])
+        if get_config().propogate_position_to_rnn:
+            x = tf.concat(1, [self.pos, x])
+
         # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
-        x = tf.expand_dims(flatten(x), [0])
+        x = tf.expand_dims(x, [0])
 
         size = get_config().rnn_size
 
@@ -98,11 +103,11 @@ class LSTMPolicy(object):
     def get_initial_features(self):
         return self.state_init
 
-    def act(self, ob, c, h):
+    def act(self, ob, pos, c, h):
         sess = tf.get_default_session()
         return sess.run([self.sample, self.sample_distribution, self.vf] + self.state_out,
-                        {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})
+                        {self.x: [ob], self.pos: [np.array([pos]).reshape((1))], self.state_in[0]: c, self.state_in[1]: h})
 
-    def value(self, ob, c, h):
+    def value(self, ob, pos, c, h):
         sess = tf.get_default_session()
-        return sess.run(self.vf, {self.x: [ob], self.state_in[0]: c, self.state_in[1]: h})[0]
+        return sess.run(self.vf, {self.x: [ob], self.pos: [np.array([pos])], self.state_in[0]: c, self.state_in[1]: h})[0]

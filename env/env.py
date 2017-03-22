@@ -72,6 +72,8 @@ class Info:
         self.lr = 0.0
         self.lr_c = 0.0
 
+        self.state = State.FLAT
+
 
 class DrawData:
     def __init__(self, env, quads, line: Line):
@@ -372,6 +374,9 @@ class Environment:
         if d and self._state != State.FLAT:
             ccy, pct, lr = Environment.calc_reward(ccy, pct, lr, self._state, self._ent_px, c, next_px, c)
             ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, px, 0, next_px, c)
+            self._state = State.FLAT
+            self._ent_px = None
+            self._ent_time = None
         # Calculate if pl positive
         self._pl_positive = False
         if self._state == State.LONG:
@@ -405,6 +410,7 @@ class Environment:
         self._info.pct_c = pct_c * 100.0
         self._info.lr = lr * 100.0
         self._info.lr_c = lr_c * 100.0
+        self._info.state = self._state
 
         return self._get_state(), r, d, self._info
 

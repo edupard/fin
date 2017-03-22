@@ -118,9 +118,10 @@ class Config(object):
     keep_prob = 0.5
     rnn_size = 255  # 16
     learning_rate = 0.0001
-    enthropy_weight = 0.001#0.01
+    enthropy_weight = 0.01  # 0.001
     num_conv_layers = 7
     max_grad_norm = 40.0
+    propogate_position_to_rnn = False
 
     def get_model_path(self, train_seed, costs):
         return os.path.join(self.base_log_dir, str(train_seed), 'costs' if costs else 'no_costs')

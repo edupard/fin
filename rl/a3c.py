@@ -7,7 +7,15 @@ import csv
 import os
 
 from config import StateMode, EnvironmentType, get_config as get_config
+from env.env import State
 
+def get_state_bit(state):
+    if state == State.FLAT:
+        return 0.0
+    elif state == State.LONG:
+        return 1.0
+    elif state == State.SHORT:
+        return -1.0
 
 def discount_gamma(x):
     return scipy.signal.lfilter(get_config().b_gamma, [1], x[::-1], axis=0)[::-1]
@@ -26,6 +34,7 @@ def process_rollout(rollout):
 given a rollout, compute its returns and the advantage
 """
     batch_si = np.asarray(rollout.states)
+    batch_poses = np.asarray(rollout.poses)
     batch_a = np.asarray(rollout.actions)
     rewards = np.asarray(rollout.rewards)
     vpred_t = np.asarray(rollout.values + [rollout.r])
@@ -46,13 +55,14 @@ given a rollout, compute its returns and the advantage
     features = rollout.features[0]
 
     batch_si = batch_si[:get_config().buffer_length, ]
+    batch_poses = batch_poses[:get_config().buffer_length, ]
     batch_a = batch_a[:get_config().buffer_length, ]
     batch_adv = batch_adv[:get_config().buffer_length, ]
     batch_r = batch_r[:get_config().buffer_length, ]
-    return Batch(batch_si, batch_a, batch_adv, batch_r, rollout.terminal, features)
+    return Batch(batch_si, batch_poses, batch_a, batch_adv, batch_r, rollout.terminal, features)
 
 
-Batch = namedtuple("Batch", ["si", "a", "adv", "r", "terminal", "features"])
+Batch = namedtuple("Batch", ["si", "pos", "a", "adv", "r", "terminal", "features"])
 
 
 class Rollout(object):
@@ -63,6 +73,7 @@ once it has processed enough steps.
 
     def __init__(self):
         self.states = []
+        self.poses = []
         self.actions = []
         self.rewards = []
         self.values = []
@@ -71,8 +82,9 @@ once it has processed enough steps.
         self.features = []
         self.len = 0
 
-    def add(self, state, action, reward, value, terminal, features):
+    def add(self, state, pos, action, reward, value, terminal, features):
         self.states += [state]
+        self.poses += [np.array([pos]).reshape((1))]
         self.actions += [action]
         self.rewards += [reward]
         self.values += [value]
@@ -163,6 +175,7 @@ should be computed.
     runner appends the policy to the queue.
     """
         last_state = self.env.reset()
+        pos = 0
         last_features = self.local_network.get_initial_features()
         length = 0
         rewards = 0
@@ -172,7 +185,7 @@ should be computed.
             pending_rollouts.append(Rollout())
 
             for _ in range(get_config().buffer_length):
-                fetched = self.local_network.act(last_state, *last_features)
+                fetched = self.local_network.act(last_state, pos, *last_features)
                 action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
                 # argmax to convert from one-hot
                 a = action.argmax()
@@ -182,17 +195,19 @@ should be computed.
 
                 # collect the experience
                 for rollout in pending_rollouts:
-                    rollout.add(last_state, action, reward, value_, terminal, last_features)
+                    rollout.add(last_state, pos, action, reward, value_, terminal, last_features)
                 length += 1
                 rewards += reward
 
                 last_state = state
+                if get_config().environment == EnvironmentType.FIN:
+                    pos = get_state_bit(info.state)
                 last_features = features
 
                 if pending_rollouts[0].is_ready():
                     rollout = pending_rollouts.pop(0)
                     if not terminal:
-                        rollout.r = self.local_network.value(last_state, *last_features)
+                        rollout.r = self.local_network.value(last_state, pos, *last_features)
                         yield rollout
 
                 if terminal:
@@ -236,6 +251,7 @@ should be computed.
         train_file_path = os.path.join(train_folder_path, '{}.csv'.format(get_config().train_seed))
 
         last_state = self.env.reset()
+        pos = 0
         last_features = self.local_network.get_initial_features()
 
         train_rewards = 0.0
@@ -248,7 +264,7 @@ should be computed.
         train_length = get_config().train_length
 
         while True:
-            fetched = self.local_network.act(last_state, *last_features)
+            fetched = self.local_network.act(last_state, pos, *last_features)
             action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
 
             a = action.argmax()
@@ -287,6 +303,8 @@ should be computed.
                 # cv_writer.writerow(row)
 
             last_state = state
+            if get_config().environment == EnvironmentType.FIN:
+                pos = get_state_bit(info.state)
             last_features = features
 
             if terminal:
@@ -316,6 +334,7 @@ should be computed.
 
         feed_dict = {
             self.local_network.x: batch.si,
+            self.local_network.pos: batch.pos,
             self.ac: batch.a,
             self.adv: batch.adv,
             self.r: batch.r,
