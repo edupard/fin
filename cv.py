@@ -12,11 +12,7 @@ from config import get_config
 from data_source.data_source import get_datasource
 
 train_min = 1200
-costs_train_min = 60
 validation_min = 2.5
-
-train_min_a = []
-costs_train_min_a = []
 
 start_seed_idx = 0
 stop_seed_idx = 0
@@ -205,17 +201,8 @@ def train_model(num_workers, train_seed, costs):
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
 
-    if costs:
-        wait_min = costs_train_min
-        if train_seed < len(costs_train_min_a):
-            wait_min = costs_train_min[train_seed]
-    else:
-        wait_min = train_min
-        if train_seed < len(train_min_a):
-            wait_min = train_min_a[train_seed]
-
-    print("Waiting %d min for model to train" % wait_min)
-    for idx in range(round(wait_min)):
+    print("Waiting %d min for model to train" % train_min)
+    for idx in range(round(train_min)):
         time.sleep(60)
         min_passed = idx + 1
         print("%d min passed" % min_passed)
