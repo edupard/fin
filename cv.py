@@ -42,7 +42,7 @@ def wrap_cmd_for_tmux(session, window, cmd):
     return window, "tmux send-keys -t {}:{} {} Enter".format(session, window, shlex.quote(cmd))
 
 
-def create_train_shell_commands(session, num_workers, model_path, train_seed, costs, cv, shell='bash'):
+def create_train_shell_commands(session, num_workers, train_seed, costs, cv, shell='bash'):
     conda_cmd = ['source', 'activate', 'rl_fin']
     base_cmd = [
         'CUDA_VISIBLE_DEVICES=',
@@ -66,6 +66,7 @@ def create_train_shell_commands(session, num_workers, model_path, train_seed, co
         conda_cmds_map += [wrap_cmd_for_tmux(session, "w-%d" % i, conda_cmd)]
 
     if not cv:
+        model_path = get_config().get_model_path(train_seed, costs)
         conda_cmds_map += [wrap_cmd_for_tmux(session, "tb", conda_cmd)]
         cmds_map += [wrap_cmd_for_tmux(session, "tb", ["tensorboard", "--logdir", model_path, "--port", "12345"])]
     cmds_map += [wrap_cmd_for_tmux(session, "htop", ["htop"])]
@@ -150,7 +151,7 @@ def create_validation_shell_commands(session, shell='bash'):
     return cmds, notes
 
 
-def start_nt_processes(num_workers, model_path, train_seed, costs, cv):
+def start_nt_processes(num_workers, train_seed, costs, cv):
     processes = []
     workers = []
     proc = subprocess.Popen([sys.executable, "worker.py", "--job-name", "ps", "--num-workers", str(num_workers)])
@@ -171,6 +172,8 @@ def start_nt_processes(num_workers, model_path, train_seed, costs, cv):
         processes.append(proc)
         workers.append(proc)
     if not cv:
+        model_path = get_config().get_model_path(train_seed, costs)
+
         proc = subprocess.Popen(["tensorboard.exe",
                                  "--logdir", model_path,
                                  "--port", "12345"])
@@ -184,18 +187,21 @@ def stop_nt_processes(processes):
 
 
 def copy_model(path, prev_path):
-    weights_path = os.path.join(path, 'train')
-    prev_weights_path = os.path.join(prev_path, 'train')
-    if os.path.exists(prev_weights_path):
-        print("Copying model from %s to %s" % (prev_path, path))
-        shutil.copytree(prev_weights_path, weights_path)
-
-
-def train_model(num_workers, train_seed, costs, model_path):
-    if is_widows_os():
-        processes = start_nt_processes(num_workers, model_path, train_seed, costs, False)
+    if os.path.exists(path):
+        print("Removing model %s" % path)
+        shutil.rmtree(path, ignore_errors=True)
+    if os.path.exists(prev_path):
+        print("Copying model %s to %s" % (prev_path, path))
+        shutil.copytree(prev_path, path)
     else:
-        cmds, notes = create_train_shell_commands("a3c", num_workers, model_path, train_seed, costs, False)
+        print("Can't copy model %s to %s" % (prev_path, path))
+
+
+def train_model(num_workers, train_seed, costs):
+    if is_widows_os():
+        processes = start_nt_processes(num_workers, train_seed, costs, False)
+    else:
+        cmds, notes = create_train_shell_commands("a3c", num_workers, train_seed, costs, False)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
 
@@ -221,11 +227,11 @@ def train_model(num_workers, train_seed, costs, model_path):
     time.sleep(5)
 
 
-def cross_validate(train_seed, model_path):
+def cross_validate(train_seed, costs):
     if is_widows_os():
-        processes, workers = start_nt_processes(1, model_path, train_seed, False, True)
+        processes, workers = start_nt_processes(1, train_seed, costs, True)
     else:
-        cmds, notes = create_train_shell_commands("a3c", num_workers, model_path, train_seed, False, True)
+        cmds, notes = create_train_shell_commands("a3c", num_workers, train_seed, costs, True)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
     if is_widows_os():
@@ -243,7 +249,7 @@ def cross_validate(train_seed, model_path):
     time.sleep(5)
 
 
-def main(copy_weights, train, costs, cv):
+def main(train, cv, costs, copy_weights):
     data = get_datasource()
     data_length = data.shape[0]
     min_seed_idx = start_seed_idx
@@ -251,53 +257,44 @@ def main(copy_weights, train, costs, cv):
     if stop_seed_idx is None:
         max_seed = (data_length - get_config().ww) // get_config().retrain_interval
     # train without costs
-    if train:
+    if train and not costs:
         for train_seed in range(min_seed_idx, max_seed):
             if train_seed < start_seed_idx:
                 continue
-            print("Starting train at %d train seed" % train_seed)
-            model_path = get_config().get_model_path(train_seed, False)
-            # if no model - copy prev model
-            if copy_weights and not os.path.exists(model_path) and train_seed > 0:
+            print("Starting train at %d seed" % train_seed)
+            if copy_weights and train_seed > 0:
+                model_path = get_config().get_model_path(train_seed, False)
                 prev_model_path = get_config().get_model_path(train_seed - 1, False)
                 copy_model(model_path, prev_model_path)
-            # train model
-            # prepare ini file
             print("Start training")
-            train_model(num_workers, train_seed, False, model_path)
-    if costs:
+            train_model(num_workers, train_seed, False)
+    if train and costs:
         for train_seed in range(min_seed_idx, max_seed):
             if train_seed < start_seed_idx:
                 continue
-            print("Starting train with costs at %d seed step" % train_seed)
-            model_path = get_config().get_model_path(train_seed, True)
-            # remove model if exists - we always learn model with costs using prev model without costs
-            shutil.rmtree(model_path, ignore_errors=True)
-            # copy model without costs
-            prev_model_path = get_config().get_model_path(train_seed, False)
-            copy_model(model_path, prev_model_path)
+            print("Starting train at %d seed" % train_seed)
+            if copy_weights:
+                model_path = get_config().get_model_path(train_seed, True)
+                prev_model_path = get_config().get_model_path(train_seed, False)
+                copy_model(model_path, prev_model_path)
             print("Start training")
-            train_model(num_workers, train_seed, True, model_path)
+            train_model(num_workers, train_seed, True)
     if cv:
         for train_seed in range(min_seed_idx, max_seed):
-            model_path = get_config().get_model_path(train_seed, True)
-            # if not costs:
-            #     no_costs_model_path = get_config().get_model_path(train_seed, False)
-            #     shutil.rmtree(model_path, ignore_errors=True)
-            #     copy_model(model_path, no_costs_model_path)
             if train_seed < start_seed_idx:
                 continue
-            print("Starting validation at %d seed step" % train_seed)
-            cross_validate(train_seed, model_path)
+            print("Starting cv at %d seed" % train_seed)
+            cross_validate(train_seed, costs)
     if os.path.exists("nn.ini"):
         os.remove("nn.ini")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('--copy', action='store_true', help="Copy weights from previous model")
-    parser.add_argument('--train', action='store_true', help="Skip train step")
-    parser.add_argument('--costs', action='store_true', help="Skip train with costs step")
-    parser.add_argument('--cv', action='store_true', help="Skip validation step")
+    parser.add_argument('--train', action='store_true', help="Train")
+    parser.add_argument('--cv', action='store_true', help="Cross validate")
+    parser.add_argument('--costs', action='store_true', help="Model include costs")
+    parser.add_argument('--copy', action='store_true', help="Replace weights")
+
     args = parser.parse_args()
-    main(args.copy, args.train, args.costs, args.cv)
+    main(args.train, args.cv, args.costs, args.copy)
