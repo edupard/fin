@@ -234,61 +234,71 @@ should be computed.
             os.makedirs(train_folder_path)
         cv_file_path = os.path.join(cv_folder_path, '{}.csv'.format(get_config().train_seed))
         train_file_path = os.path.join(train_folder_path, '{}.csv'.format(get_config().train_seed))
-        with open(cv_file_path, 'w', newline='') as cv_f, open(train_file_path, 'w', newline='') as train_f:
-            cv_writer = csv.writer(cv_f, dialect='data')
-            train_writer = csv.writer(train_f, dialect='data')
 
-            last_state = self.env.reset()
-            last_features = self.local_network.get_initial_features()
+        last_state = self.env.reset()
+        last_features = self.local_network.get_initial_features()
 
-            train_rewards = 0.0
-            cv_rewards = 0.0
-            t_l = 0
-            cv_l = 0
-            train_length = get_config().train_length
+        train_rewards = 0.0
+        cv_rewards = 0.0
+        t_l = 0
+        cv_l = 0
+        train_rows = []
+        cv_rows = []
 
-            while True:
-                fetched = self.local_network.act(last_state, *last_features)
-                action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
+        train_length = get_config().train_length
 
-                a = action.argmax()
-                state, reward, terminal, info = self.env.step(a)
-                if get_config().render:
-                    self.env.render()
+        while True:
+            fetched = self.local_network.act(last_state, *last_features)
+            action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
 
-                train_step = t_l <= train_length
-                if train_step:
-                    t_l += 1
-                    train_rewards += reward
-                else:
-                    cv_l += 1
-                    cv_rewards += reward
+            a = action.argmax()
+            state, reward, terminal, info = self.env.step(a)
+            if get_config().render:
+                self.env.render()
 
-                row = [info.time,
-                       info.price,
-                       info.next_time,
-                       info.next_price,
-                       info.ccy,
-                       info.ccy_c,
-                       info.pct,
-                       info.pct_c,
-                       info.lr,
-                       info.lr_c,
-                       a]
-                row.extend(value_)
-                row.extend(action_distribution.reshape((-1)))
-                if train_step:
-                    train_writer.writerow(row)
-                else:
-                    cv_writer.writerow(row)
+            train_step = t_l <= train_length
+            if train_step:
+                t_l += 1
+                train_rewards += reward
+            else:
+                cv_l += 1
+                cv_rewards += reward
 
-                last_state = state
-                last_features = features
+            row = [info.time,
+                   info.price,
+                   info.next_time,
+                   info.next_price,
+                   info.ccy,
+                   info.ccy_c,
+                   info.pct,
+                   info.pct_c,
+                   info.lr,
+                   info.lr_c,
+                   a]
+            row.extend(value_)
+            row.extend(action_distribution.reshape((-1)))
+            np_row = np.array(row)
 
-                if terminal:
-                    break
-            print("Episode finished. Train rewards: %.3f. Cv rewards: %.3f Train length: %d Cv length: %d" % (
-                train_rewards, cv_rewards, t_l, cv_l))
+            if train_step:
+                train_rows.append(np_row)
+                # train_writer.writerow(row)
+            else:
+                cv_rows.append(np_row)
+                # cv_writer.writerow(row)
+
+            last_state = state
+            last_features = features
+
+            if terminal:
+                break
+        t_d = np.vstack(train_rows)
+        cv_d = np.vstack(cv_rows)
+
+        np.savetxt(train_file_path, t_d, delimiter=',')
+        np.savetxt(cv_file_path, cv_d, delimiter=',')
+
+        print("Episode finished. Train rewards: %.3f. Cv rewards: %.3f Train length: %d Cv length: %d" % (
+            train_rewards, cv_rewards, t_l, cv_l))
 
     def process(self, sess):
         sess.run(self.sync)  # copy weights from shared to local
