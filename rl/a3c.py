@@ -6,7 +6,7 @@ import scipy.signal
 import csv
 import os
 
-from config import EnvironmentType, get_config as get_config
+from config import StateMode, EnvironmentType, get_config as get_config
 
 
 def discount_gamma(x):
@@ -137,7 +137,8 @@ should be computed.
             tf.summary.scalar("model/value_loss", vf_loss / bs)
             tf.summary.scalar("model/entropy", entropy / bs)
             tf.summary.scalar("model/loss", self.loss / bs)
-            tf.summary.image("model/state", pi.x)
+            if get_config().state_mode == StateMode.TWO_D:
+                tf.summary.image("model/state", pi.x)
             tf.summary.scalar("model/grad_global_norm", tf.global_norm(grads))
             tf.summary.scalar("model/var_global_norm", tf.global_norm(pi.var_list))
             self.summary_op = tf.summary.merge_all()
@@ -233,7 +234,7 @@ should be computed.
             os.makedirs(train_folder_path)
         cv_file_path = os.path.join(cv_folder_path, '{}.csv'.format(get_config().train_seed))
         train_file_path = os.path.join(train_folder_path, '{}.csv'.format(get_config().train_seed))
-        with open(cv_file_path, 'w') as cv_f, open(train_file_path, 'w') as train_f:
+        with open(cv_file_path, 'w', newline='') as cv_f, open(train_file_path, 'w', newline='') as train_f:
             cv_writer = csv.writer(cv_f, dialect='data')
             train_writer = csv.writer(train_f, dialect='data')
 

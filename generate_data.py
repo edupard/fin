@@ -113,7 +113,7 @@ data = generate_data()
 data_file_path = './data/{}_20141116_000000.csv'.format(get_config().ticker)
 print('Writing data to {}...'.format(data_file_path))
 register_csv_dialect()
-with open(data_file_path, 'w') as f:
+with open(data_file_path, 'w', newline='') as f:
     writer = csv.writer(f, dialect='data')
     for idx in range(0, data.shape[0]):
         row = data[idx, :]

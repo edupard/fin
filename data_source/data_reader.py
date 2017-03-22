@@ -210,7 +210,7 @@ class DataReader(object):
         if not os.path.exists(self._DATA_FOLDER_PATH):
             os.makedirs(self._DATA_FOLDER_PATH)
 
-        with open(self._DATA_FILE_PATH, 'w') as f:
+        with open(self._DATA_FILE_PATH, 'w', newline='') as f:
             writer = csv.writer(f, dialect='data')
             for idx in range(0, self._data.shape[0]):
                 row = self._data[idx, :]

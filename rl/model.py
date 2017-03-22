@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 
-from config import get_config, EnvironmentType
+from config import get_config, EnvironmentType, StateMode
 
 
 def normalized_columns_initializer(std=1.0):
@@ -58,8 +58,9 @@ class LSTMPolicy(object):
         n_l = 4
         if get_config().environment == EnvironmentType.FIN:
             n_l = get_config().num_conv_layers
-        for i in range(n_l):
-            x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
+        if get_config().environment == EnvironmentType.PONG or get_config().state_mode == StateMode.TWO_D:
+            for i in range(n_l):
+                x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
         # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
         x = tf.expand_dims(flatten(x), [0])
 

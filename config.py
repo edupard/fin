@@ -31,10 +31,16 @@ class RewardAlgo(Enum):
     LR = 2
 
 
+class StateMode(Enum):
+    ONE_D = 0
+    TWO_D = 1
+
+
 class Config(object):
     # env factory config
     environment = EnvironmentType.FIN
     model = 'qo_1h'
+    # model = 'qo_15min'
     base_log_dir = os.path.join('./models/', model)
 
     # Data config
@@ -48,7 +54,7 @@ class Config(object):
     # bar_min = 24 * 60
     # Brent
     ticker = 'QO'
-    bar_min = 60
+    bar_min = 60  # 15
     # Experiments
     # ticker = 'EXP'
     # bar_min = 30
@@ -91,10 +97,11 @@ class Config(object):
     reward_scale_multiplier = 100.0
 
     render = False
+    state_mode = StateMode.ONE_D
 
     # Episode parameters
     cv = False
-    train_length = 6000
+    train_length = 3000  # 6000 * 4
     train_episode_length = train_length
     # train_length = 10000
     # train_episode_length = train_length // 13
@@ -109,7 +116,7 @@ class Config(object):
     buffer_length = 20
     fwd_buffer_length = 20 if algo_modification else 0
     keep_prob = 0.5
-    rnn_size = 16
+    rnn_size = 255  # 16
     learning_rate = 0.0001
     enthropy_weight = 0.01
     num_conv_layers = 7

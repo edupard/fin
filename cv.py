@@ -11,7 +11,7 @@ import argparse
 from config import get_config
 from data_source.data_source import get_datasource
 
-train_min = 600
+train_min = 1200
 costs_train_min = 60
 validation_min = 2.5
 

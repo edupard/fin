@@ -10,7 +10,7 @@ from gym.spaces.box import Box
 import cv2
 
 from data_source.data_source import get_datasource
-from config import get_config, RenderingBackend, RewardType, RewardAlgo
+from config import get_config, RenderingBackend, RewardType, RewardAlgo, StateMode
 from env.action import Action, convert_to_action
 
 
@@ -151,7 +151,11 @@ class Environment:
         self._initialized = False
 
         self._action_space = spaces.Discrete(3)
-        self._observation_space = Box(0.0, 1.0, [get_config().window_px_width, get_config().window_px_height, 1])
+        if get_config().state_mode == StateMode.TWO_D:
+            self._observation_space = Box(0.0, 1.0, [get_config().window_px_width, get_config().window_px_height, 1])
+        elif get_config().state_mode == StateMode.ONE_D:
+            # Lower and upper bound is incorrect but it doesnt matter
+            self._observation_space = Box(0.0, 1.0, [get_config().ww + 1, 1])
 
         self._info = Info()
 
@@ -209,33 +213,40 @@ class Environment:
         def calc_scaled_y(px: float) -> float:
             return (px - px_min) / (px_max - px_min)
 
-        quads = np.zeros((get_config().ww + 1, 4), dtype=np.float)
-        # First point
-        x_r = calc_scaled_x(t_max)
+        if get_config().state_mode == StateMode.ONE_D:
+            self.one_d_state = np.zeros((get_config().ww + 1, 1), dtype=np.float)
+            for i in range(get_config().ww + 1):
+                data_idx = last_data_idx - i
+                px = self._data[data_idx][1]
+                y = calc_scaled_y(px)
+                self.one_d_state[get_config().ww - i] = y
+        if get_config().state_mode == StateMode.TWO_D or get_config().render:
+            quads = np.zeros((get_config().ww + 1, 4), dtype=np.float)
+            # First point
+            x_r = calc_scaled_x(t_max)
 
-        for i in range(get_config().ww + 1):
-            data_idx = last_data_idx - i
-            px = self._data[data_idx][1]
-            t = float(data_idx)
-            x_l = calc_scaled_x(t)
-            y_h = calc_scaled_y(px)
-            y_l = 0.0
+            for i in range(get_config().ww + 1):
+                data_idx = last_data_idx - i
+                px = self._data[data_idx][1]
+                t = float(data_idx)
+                x_l = calc_scaled_x(t)
+                y_h = calc_scaled_y(px)
+                y_l = 0.0
 
-            quads[i][0] = x_l
-            quads[i][1] = y_l
-            quads[i][2] = x_r
-            quads[i][3] = y_h
+                quads[i][0] = x_l
+                quads[i][1] = y_l
+                quads[i][2] = x_r
+                quads[i][3] = y_h
 
-            x_r = x_l
+                x_r = x_l
 
-        line = None
-        if self._ent_time is not None:
-            line = Line(self._pl_positive, calc_scaled_x(self._ent_time), calc_scaled_y(self._ent_px),
-                        calc_scaled_x(self._current_time), calc_scaled_y(last_px))
+            line = None
+            if self._ent_time is not None:
+                line = Line(self._pl_positive, calc_scaled_x(self._ent_time), calc_scaled_y(self._ent_px),
+                            calc_scaled_x(self._current_time), calc_scaled_y(last_px))
 
-        self._dd = DrawData(self, quads, line)
-
-        get_ui_thread().draw(self._dd)
+            self._dd = DrawData(self, quads, line)
+            get_ui_thread().draw(self._dd)
 
     def reset(self):
         if not self._initialized:
@@ -283,10 +294,13 @@ class Environment:
         return self._get_state()
 
     def _get_state(self):
-        get_ui_thread().grab_data(self)
-        arr = self._data_queue.get()
-
-        return _process_frame(arr)
+        if get_config().state_mode == StateMode.TWO_D or get_config().render:
+            get_ui_thread().grab_data(self)
+            arr = self._data_queue.get()
+            if get_config().state_mode == StateMode.TWO_D:
+                return _process_frame(arr)
+        if get_config().state_mode == StateMode.ONE_D:
+            return np.reshape(self.one_d_state, [get_config().ww + 1, 1])
 
     def _fill_info(self, data_idx, next_data_idx):
         self._info.price = self._data[data_idx][1]
