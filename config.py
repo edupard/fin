@@ -121,7 +121,7 @@ class Config(object):
     enthropy_weight = 0.01  # 0.001
     num_conv_layers = 7
     max_grad_norm = 40.0
-    propogate_position_to_rnn = False
+    propogate_position_to_rnn = True
 
     def get_model_path(self, train_seed, costs):
         return os.path.join(self.base_log_dir, str(train_seed), 'costs' if costs else 'no_costs')
