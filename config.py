@@ -118,7 +118,7 @@ class Config(object):
     keep_prob = 0.5
     rnn_size = 255  # 16
     learning_rate = 0.0001
-    enthropy_weight = 0.1  # 0.001
+    enthropy_weight = 0.001
     num_conv_layers = 7
     max_grad_norm = 40.0
     propogate_position_to_rnn = True
