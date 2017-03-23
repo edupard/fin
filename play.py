@@ -10,6 +10,7 @@ from env.buttons import get_buttons
 
 
 def main():
+    get_config().render = True
     get_config().set_train_seed(0)
     get_config().turn_on_costs()
 

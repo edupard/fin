@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 import queue
 import pygame
+import math
 
 from config import get_config, ThreadingModel
 from env.env import DrawData, Line
@@ -73,9 +74,11 @@ def recalc_x(x: float) -> float:
 def render_line_to_surface(surf, dd: DrawData):
     if dd.line is not None:
         if dd.line.pl_positive:
-            color = (50, 205, 50)
+            # color = (50, 205, 50)
+            color = (0, 255, 0)
         else:
-            color = (128, 0, 0)
+            # color = (128, 0, 0)
+            color = (255, 0, 0)
 
         x0 = dd.line.x0 * get_config().window_px_width
         y0 = get_config().window_px_height - dd.line.y0 * get_config().window_px_height
@@ -217,7 +220,8 @@ class UiThread:
     def _on_draw(self, dd: DrawData):
         env_info = self._get_env_info(dd.env)
 
-        color = (0, 0, 0)
+        # color = (0, 0, 0)
+        color = (0, 0, 255)
         env_info.fbo.fill(color)
 
         # draw prices
@@ -225,7 +229,8 @@ class UiThread:
         count = quads.shape[0]
 
         for i in range(count):
-            color = (153, 50, 204)
+            # color = (153, 50, 204)
+            color = (255, 255, 255)
 
             x_l = quads[i][0]
             y_l = quads[i][1]
@@ -238,10 +243,20 @@ class UiThread:
             # pygame coordinate system origin is at the top-left corner
             x_l_px = x_l * get_config().window_px_width
             y_h_px = get_config().window_px_height - y_h * get_config().window_px_height
-            w_px = w * get_config().window_px_width
-            h_px = h * get_config().window_px_height
+            # w_px = w * get_config().window_px_width
+            # h_px = h * get_config().window_px_height
+            #rect = pygame.Rect(x_l_px, y_h_px, w_px, h_px)
+            x_r_px = x_r * get_config().window_px_width
+            y_l_px = get_config().window_px_height - y_l * get_config().window_px_height
 
-            pygame.draw.rect(env_info.fbo, color, (x_l_px, y_h_px, w_px, h_px), 0)
+            x_l_px = round(x_l_px)
+            x_r_px = round(x_r_px)
+            y_l_px = round(y_l_px)
+            y_h_px = round(y_h_px)
+            w_px = round(x_r_px - x_l_px)
+            h_px = round(y_l_px - y_h_px)
+            rect = pygame.Rect(x_l_px, y_h_px, w_px, h_px)
+            pygame.draw.rect(env_info.fbo, color, rect, 0)
 
         # draw line
         if get_config().draw_training_line:
