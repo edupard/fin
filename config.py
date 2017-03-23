@@ -121,9 +121,9 @@ class Config(object):
     num_2d_conv_layers = 7
     num_2d_filters = 32
     rnn_2d_size = 16
-    num_1d_conv_layers = 0#5
+    num_1d_conv_layers = 5
     num_1d_filters = 5
-    rnn_1d_size = 255#10
+    rnn_1d_size = 10  # 255
     max_grad_norm = 40.0
     propogate_position_to_rnn = True
 
