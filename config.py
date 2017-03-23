@@ -99,7 +99,7 @@ class Config(object):
     render = False
     # Episode parameters
     cv = False
-    train_length = 3000  # 6000 * 4
+    train_length = 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
     # train_length = 10000
     # train_episode_length = train_length // 13
@@ -121,9 +121,12 @@ class Config(object):
     num_2d_conv_layers = 7
     num_2d_filters = 32
     rnn_2d_size = 16
+
+    # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
+    conv_layers_1d = [(8, 4, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 3)]
     num_1d_conv_layers = 5
     num_1d_filters = 5
-    rnn_1d_size = 10  # 255
+    rnn_1d_size = 6  # 255
     max_grad_norm = 40.0
     propogate_position_to_rnn = True
 

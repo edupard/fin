@@ -64,8 +64,12 @@ class LSTMPolicy(object):
                 for i in range(get_config().num_2d_conv_layers):
                     x = tf.nn.elu(conv2d(x, get_config().num_2d_filters, "l{}".format(i + 1), [3, 3], [2, 2]))
             elif get_config().state_mode == StateMode.ONE_D:
-                for i in range(get_config().num_1d_conv_layers):
-                    x = tf.nn.elu(conv2d(x, get_config().num_1d_filters, "l{}".format(i + 1), [3, 1], [2, 1]))
+                # for i in range(get_config().num_1d_conv_layers):
+                #     x = tf.nn.elu(conv2d(x, get_config().num_1d_filters, "l{}".format(i + 1), [3, 1], [2, 1]))
+                i = 0
+                for k,s,f in get_config().conv_layers_1d:
+                    x = tf.nn.elu(conv2d(x, f, "l{}".format(i + 1), [k, 1], [s, 1]))
+                    i+=1
         x = flatten(x)
         self.pos = tf.placeholder(tf.float32, [None, 1])
         if get_config().propogate_position_to_rnn:
