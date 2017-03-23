@@ -55,12 +55,17 @@ class LSTMPolicy(object):
     def __init__(self, ob_space, ac_space):
         self.x = x = tf.placeholder(tf.float32, [None] + list(ob_space))
 
-        n_l = 4
-        if get_config().environment == EnvironmentType.FIN:
-            n_l = get_config().num_conv_layers
-        if get_config().environment == EnvironmentType.PONG or get_config().state_mode == StateMode.TWO_D:
-            for i in range(n_l):
+        if get_config().environment == EnvironmentType.PONG:
+            for i in range(4):
                 x = tf.nn.elu(conv2d(x, 32, "l{}".format(i + 1), [3, 3], [2, 2]))
+
+        if get_config().environment == EnvironmentType.FIN:
+            if get_config().state_mode == StateMode.TWO_D:
+                for i in range(get_config().num_2d_conv_layers):
+                    x = tf.nn.elu(conv2d(x, get_config().num_2d_filters, "l{}".format(i + 1), [3, 3], [2, 2]))
+            elif get_config().state_mode == StateMode.ONE_D:
+                for i in range(get_config().num_1d_conv_layers):
+                    x = tf.nn.elu(conv2d(x, get_config().num_1d_filters, "l{}".format(i + 1), [3, 1], [2, 1]))
         x = flatten(x)
         self.pos = tf.placeholder(tf.float32, [None, 1])
         if get_config().propogate_position_to_rnn:
@@ -69,7 +74,12 @@ class LSTMPolicy(object):
         # introduce a "fake" batch dimension of 1 after flatten so that we can do LSTM over time dim
         x = tf.expand_dims(x, [0])
 
-        size = get_config().rnn_size
+        size = 255
+        if get_config().environment == EnvironmentType.FIN:
+            if get_config().state_mode == StateMode.TWO_D:
+                size = get_config().rnn_2d_size
+            if get_config().state_mode == StateMode.ONE_D:
+                size = get_config().rnn_1d_size
 
         lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
         # keep_prob = tf.placeholder(tf.float32)

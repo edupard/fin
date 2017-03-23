@@ -157,7 +157,7 @@ class Environment:
             self._observation_space = Box(0.0, 1.0, [get_config().window_px_width, get_config().window_px_height, 1])
         elif get_config().state_mode == StateMode.ONE_D:
             # Lower and upper bound is incorrect but it doesnt matter
-            self._observation_space = Box(0.0, 1.0, [get_config().ww + 1, 1])
+            self._observation_space = Box(0.0, 1.0, [get_config().ww + 1, 1, 1])
 
         self._info = Info()
 
@@ -216,12 +216,12 @@ class Environment:
             return (px - px_min) / (px_max - px_min)
 
         if get_config().state_mode == StateMode.ONE_D:
-            self.one_d_state = np.zeros((get_config().ww + 1, 1), dtype=np.float)
+            self.one_d_state = np.zeros((get_config().ww + 1, 1, 1), dtype=np.float)
             for i in range(get_config().ww + 1):
                 data_idx = last_data_idx - i
                 px = self._data[data_idx][1]
                 y = calc_scaled_y(px)
-                self.one_d_state[get_config().ww - i] = y
+                self.one_d_state[get_config().ww - i][0][0] = y
         if get_config().state_mode == StateMode.TWO_D or get_config().render:
             quads = np.zeros((get_config().ww + 1, 4), dtype=np.float)
             # First point
@@ -302,7 +302,7 @@ class Environment:
             if get_config().state_mode == StateMode.TWO_D:
                 return _process_frame(arr)
         if get_config().state_mode == StateMode.ONE_D:
-            return np.reshape(self.one_d_state, [get_config().ww + 1, 1])
+            return self.one_d_state
 
     def _fill_info(self, data_idx, next_data_idx):
         self._info.price = self._data[data_idx][1]

@@ -97,8 +97,6 @@ class Config(object):
     reward_scale_multiplier = 100.0
 
     render = False
-    state_mode = StateMode.ONE_D
-
     # Episode parameters
     cv = False
     train_length = 3000  # 6000 * 4
@@ -116,10 +114,16 @@ class Config(object):
     buffer_length = 20
     fwd_buffer_length = 20 if algo_modification else 0
     keep_prob = 0.5
-    rnn_size = 255  # 16
+
     learning_rate = 0.0001
-    enthropy_weight = 0.001
-    num_conv_layers = 7
+    enthropy_weight = 0.01
+    state_mode = StateMode.ONE_D
+    num_2d_conv_layers = 7
+    num_2d_filters = 32
+    rnn_2d_size = 16
+    num_1d_conv_layers = 0#5
+    num_1d_filters = 5
+    rnn_1d_size = 255#10
     max_grad_norm = 40.0
     propogate_position_to_rnn = True
 
