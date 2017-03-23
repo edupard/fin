@@ -116,19 +116,19 @@ class Config(object):
     keep_prob = 1.0  # 0.5
 
     learning_rate = 0.0001
-    enthropy_weight = 0.01
+    enthropy_weight = 0.0001
     state_mode = StateMode.ONE_D
     num_2d_conv_layers = 7
     num_2d_filters = 32
     rnn_2d_size = 16
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
-    conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 3)]
+    conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     num_1d_conv_layers = 5
     num_1d_filters = 5
-    rnn_1d_size = 6  # 255
+    rnn_1d_size = 4  # 255
     max_grad_norm = 40.0
-    propogate_position_to_rnn = True
+    propogate_position_to_rnn = False
 
     def get_model_path(self, train_seed, costs):
         return os.path.join(self.base_log_dir, str(train_seed), 'costs' if costs else 'no_costs')
