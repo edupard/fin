@@ -218,7 +218,7 @@ def cross_validate(train_seed, costs):
     if is_widows_os():
         processes, workers = start_nt_processes(1, train_seed, costs, True)
     else:
-        cmds, notes = create_train_shell_commands("a3c", num_workers, train_seed, costs, True)
+        cmds, notes = create_train_shell_commands("a3c", 1, train_seed, costs, True)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
     if is_widows_os():
