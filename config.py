@@ -123,7 +123,7 @@ class Config(object):
     rnn_2d_size = 16
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
-    conv_layers_1d = [(8, 4, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 3)]
+    conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4)]
     num_1d_conv_layers = 5
     num_1d_filters = 5
     rnn_1d_size = 6  # 255
