@@ -113,7 +113,7 @@ class Config(object):
     gamma = 1.0
     buffer_length = 20
     fwd_buffer_length = 20 if algo_modification else 0
-    keep_prob = 0.5
+    keep_prob = 1.0  # 0.5
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
@@ -123,7 +123,7 @@ class Config(object):
     rnn_2d_size = 16
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
-    conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4)]
+    conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 3)]
     num_1d_conv_layers = 5
     num_1d_filters = 5
     rnn_1d_size = 6  # 255
