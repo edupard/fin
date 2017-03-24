@@ -67,12 +67,14 @@ def run(args, server):
     with sv.managed_session(server.target, config=config) as sess, sess.as_default():
         sess.run(trainer.sync)
         global_step = sess.run(trainer.global_step)
-        if get_config().cv:
+        if get_config().is_log_mode():
+            logger.info("Starting log at step=%d", global_step)
+        elif get_config().is_cv_mode():
             logger.info("Starting cv at step=%d", global_step)
         else:
             logger.info("Starting training at step=%d", global_step)
-        if get_config().cv:
-            trainer.cross_validate(sess)
+        if get_config().is_log_mode():
+            trainer.log(sess)
         else:
             while not sv.should_stop() and global_step < get_config().num_global_steps:
                 trainer.process(sess)
@@ -80,8 +82,8 @@ def run(args, server):
 
     # Ask for all the services to stop.
     sv.stop()
-    if get_config().cv:
-        logger.info('cv complete. worker stopped.')
+    if get_config().is_log_mode():
+        logger.info('log complete. worker stopped.')
     else:
         logger.info('reached %s steps. worker stopped.', global_step)
     stop_env(env)
@@ -122,16 +124,15 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--seed', default=0, type=int, help='Train seed')
     parser.add_argument('--render', action='store_true', help="Render environment")
     parser.add_argument('--costs', action='store_true', help="Turn on costs")
-    parser.add_argument('--cv', action='store_true', help="Cross validation mode")
+    parser.add_argument('--mode', default="train", help="Network mode")
     args = parser.parse_args()
 
+    get_config().set_mode(args.mode)
     get_config().set_train_seed(args.seed)
-    if args.render:
-        get_config().turn_on_render()
     if args.costs:
         get_config().turn_on_costs()
-    if args.cv:
-        get_config().turn_on_cv()
+    if args.render:
+        get_config().turn_on_render()
 
     spec = cluster_spec(args.num_workers, 1)
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()

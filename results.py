@@ -11,7 +11,7 @@ import os
 import fnmatch
 import argparse
 
-draw_deals = True
+draw_deals = False
 # PL
 draw_ccy = True
 draw_ccy_c = False

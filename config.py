@@ -36,6 +36,21 @@ class StateMode(Enum):
     TWO_D = 1
 
 
+class Mode(Enum):
+    TRAIN = 0
+    CV = 1
+    LOG = 2
+
+def parse_mode(s_mode):
+    s_m = s_mode.lower()
+    if s_m == "train":
+        return Mode.TRAIN
+    elif s_m == "cv":
+        return Mode.CV
+    elif s_m == "log":
+        return Mode.LOG
+
+
 class Config(object):
     # env factory config
     environment = EnvironmentType.FIN
@@ -98,7 +113,7 @@ class Config(object):
 
     render = False
     # Episode parameters
-    cv = False
+    mode = Mode.TRAIN
     train_length = 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
     # train_length = 10000
@@ -117,7 +132,7 @@ class Config(object):
 
     learning_rate = 0.0001
     enthropy_weight = 0.001
-    state_mode = StateMode.ONE_D
+    state_mode = StateMode.TWO_D
     conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     rnn_2d_size = 8
 
@@ -125,27 +140,40 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     conv_layers_1d = [(3, 2, 200), (3, 2, 150), (3, 2, 150), (3, 2, 100), (3, 2, 100), (3, 2, 50)]
-    rnn_1d_size = 64#4  # 255
+    rnn_1d_size = 64  # 4  # 255
     max_grad_norm = 40.0
     propogate_position_to_rnn = False
 
-    def get_model_path(self, train_seed, costs):
-        return os.path.join(self.base_log_dir, str(train_seed), 'costs' if costs else 'no_costs')
+    def get_model_path(self, train_seed, costs, mode):
+        model_dir = 'costs' if costs else 'no_costs'
+        if mode == Mode.CV:
+            model_dir = 'cv_costs' if costs else 'cv_no_costs'
+        return os.path.join(self.base_log_dir, str(train_seed), model_dir)
+
+    def is_evaluation(self):
+        return self.mode == Mode.LOG or self.mode == Mode.CV
+
+    def is_log_mode(self):
+        return self.mode == Mode.LOG
+
+    def is_cv_mode(self):
+        return self.mode == Mode.CV
 
     def turn_on_costs(self):
         self.costs_on = True
         self.costs = self.costs_effective
         self.reset_log_dir()
 
-    def turn_on_cv(self):
-        self.cv = True
+    def set_mode(self, s_mode):
+        self.mode = parse_mode(s_mode)
+        self.reset_log_dir()
 
     def set_train_seed(self, train_seed):
         self.train_seed = train_seed
         self.reset_log_dir()
 
     def reset_log_dir(self):
-        self.log_dir = self.get_model_path(self.train_seed, self.costs_on)
+        self.log_dir = self.get_model_path(self.train_seed, self.costs_on, self.mode)
 
     def turn_on_render(self):
         self.render = True

@@ -7,12 +7,13 @@ import multiprocessing
 import time
 import subprocess
 import argparse
+from enum import Enum
 
-from config import get_config
+from config import get_config, Mode, parse_mode
 from data_source.data_source import get_datasource
 
 train_min = 1200
-validation_min = 2.5
+log_min = 2.5
 
 start_seed_idx = 0
 stop_seed_idx = 0
@@ -38,7 +39,7 @@ def wrap_cmd_for_tmux(session, window, cmd):
     return window, "tmux send-keys -t {}:{} {} Enter".format(session, window, shlex.quote(cmd))
 
 
-def create_train_shell_commands(session, num_workers, train_seed, costs, cv, shell='bash'):
+def create_train_shell_commands(session, num_workers, train_seed, costs, mode, shell='bash'):
     conda_cmd = ['source', 'activate', 'rl_fin']
     base_cmd = [
         'CUDA_VISIBLE_DEVICES=',
@@ -54,17 +55,24 @@ def create_train_shell_commands(session, num_workers, train_seed, costs, cv, she
                 "--seed", str(train_seed)]
         if costs:
             args += ["--costs"]
-        if cv:
-            args += ["--cv"]
+        args += ["--mode"]
+        if mode == Mode.TRAIN:
+            args += ["train"]
+        if mode == Mode.CV:
+            args += ["cv"]
+        if mode == Mode.LOG:
+            args += ["log"]
 
         cmds_map += [wrap_cmd_for_tmux(session,
                                        "w-%d" % i, base_cmd + args)]
         conda_cmds_map += [wrap_cmd_for_tmux(session, "w-%d" % i, conda_cmd)]
 
-    if not cv:
-        model_path = get_config().get_model_path(train_seed, costs)
+    # tensorboard
+    if mode != Mode.LOG:
+        model_path = get_config().get_model_path(train_seed, costs, mode)
         conda_cmds_map += [wrap_cmd_for_tmux(session, "tb", conda_cmd)]
         cmds_map += [wrap_cmd_for_tmux(session, "tb", ["tensorboard", "--logdir", model_path, "--port", "12345"])]
+    # htop
     cmds_map += [wrap_cmd_for_tmux(session, "htop", ["htop"])]
 
     windows = [v[0] for v in cmds_map]
@@ -147,7 +155,7 @@ def create_validation_shell_commands(session, shell='bash'):
     return cmds, notes
 
 
-def start_nt_processes(num_workers, train_seed, costs, cv):
+def start_nt_processes(num_workers, train_seed, costs, mode):
     processes = []
     workers = []
     proc = subprocess.Popen([sys.executable, "worker.py", "--job-name", "ps", "--num-workers", str(num_workers)])
@@ -162,18 +170,24 @@ def start_nt_processes(num_workers, train_seed, costs, cv):
                 ]
         if costs:
             args += ["--costs"]
-        if cv:
-            args += ["--cv"]
+        args += ["--mode"]
+        if mode == Mode.TRAIN:
+            args += ["train"]
+        if mode == Mode.CV:
+            args += ["cv"]
+        if mode == Mode.LOG:
+            args += ["log"]
         proc = subprocess.Popen(args)
         processes.append(proc)
         workers.append(proc)
-    if not cv:
-        model_path = get_config().get_model_path(train_seed, costs)
-
+    # tensorboard
+    if mode != Mode.LOG:
+        model_path = get_config().get_model_path(train_seed, costs, mode)
         proc = subprocess.Popen(["tensorboard.exe",
                                  "--logdir", model_path,
                                  "--port", "12345"])
         processes.append(proc)
+
     return processes, workers
 
 
@@ -193,42 +207,25 @@ def copy_model(path, prev_path):
         print("Can't copy model %s to %s" % (prev_path, path))
 
 
-def train_model(num_workers, train_seed, costs):
+def run_model(s_process, min, num_workers, train_seed, costs, mode):
     if is_widows_os():
-        processes = start_nt_processes(num_workers, train_seed, costs, False)
+        processes, workers = start_nt_processes(num_workers, train_seed, costs, mode)
     else:
-        cmds, notes = create_train_shell_commands("a3c", num_workers, train_seed, costs, False)
+        cmds, notes = create_train_shell_commands("a3c", num_workers, train_seed, costs, mode)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
 
-    print("Waiting %d min for model to train" % train_min)
-    for idx in range(round(train_min)):
-        time.sleep(60)
-        min_passed = idx + 1
-        print("%d min passed" % min_passed)
-    print("Stopping train process")
-    if is_widows_os():
-        stop_nt_processes(processes)
-    else:
-        os.system("tmux kill-session -t a3c")
-    time.sleep(5)
-
-
-def cross_validate(train_seed, costs):
-    if is_widows_os():
-        processes, workers = start_nt_processes(1, train_seed, costs, True)
-    else:
-        cmds, notes = create_train_shell_commands("a3c", 1, train_seed, costs, True)
-        os.environ["TMUX"] = ""
-        os.system("\n".join(cmds))
-    if is_widows_os():
-        print("Waiting for model to validate")
+    if mode == Mode.LOG and is_widows_os():
+        print("Waiting for model to log")
         for w in workers:
             w.wait()
     else:
-        print("Waiting %.2f min for model to validate" % validation_min)
-        time.sleep(60 * validation_min)
-        print("Stopping validation process")
+        print("Waiting %d min for model to %s" % (min, s_process))
+        for idx in range(round(min)):
+            time.sleep(60)
+            min_passed = idx + 1
+            print("%d min passed" % min_passed)
+    print("Stopping %s process" % s_process)
     if is_widows_os():
         stop_nt_processes(processes)
     else:
@@ -236,52 +233,51 @@ def cross_validate(train_seed, costs):
     time.sleep(5)
 
 
-def main(train, cv, costs, copy_weights):
+def main(mode, costs, copy_weights):
     data = get_datasource()
     data_length = data.shape[0]
     min_seed_idx = start_seed_idx
     max_seed = stop_seed_idx + 1
     if stop_seed_idx is None:
         max_seed = (data_length - get_config().ww) // get_config().retrain_interval
-    # train without costs
-    if train and not costs:
-        for train_seed in range(min_seed_idx, max_seed):
-            if train_seed < start_seed_idx:
-                continue
-            print("Starting train at %d seed" % train_seed)
-            if copy_weights and train_seed > 0:
-                model_path = get_config().get_model_path(train_seed, False)
-                prev_model_path = get_config().get_model_path(train_seed - 1, False)
-                copy_model(model_path, prev_model_path)
-            print("Start training")
-            train_model(num_workers, train_seed, False)
-    if train and costs:
-        for train_seed in range(min_seed_idx, max_seed):
-            if train_seed < start_seed_idx:
-                continue
-            print("Starting train at %d seed" % train_seed)
+    for train_seed in range(min_seed_idx, max_seed):
+        if train_seed < start_seed_idx:
+            continue
+
+        if mode == Mode.TRAIN:
+            s_process = "train"
+        elif mode == Mode.CV:
+            s_process = "cv"
+        elif mode == Mode.LOG:
+            s_process = "log"
+        print("Starting %s at %d seed" % (s_process, train_seed))
+        if mode == Mode.TRAIN:
             if copy_weights:
-                model_path = get_config().get_model_path(train_seed, True)
-                prev_model_path = get_config().get_model_path(train_seed, False)
-                copy_model(model_path, prev_model_path)
-            print("Start training")
-            train_model(num_workers, train_seed, True)
-    if cv:
-        for train_seed in range(min_seed_idx, max_seed):
-            if train_seed < start_seed_idx:
-                continue
-            print("Starting cv at %d seed" % train_seed)
-            cross_validate(train_seed, costs)
-    if os.path.exists("nn.ini"):
-        os.remove("nn.ini")
+                model_path = get_config().get_model_path(train_seed, costs, Mode.TRAIN)
+                if costs:
+                    prev_model_path = get_config().get_model_path(train_seed, False, Mode.TRAIN)
+                    copy_model(model_path, prev_model_path)
+                else:
+                    if train_seed > 0:
+                        prev_model_path = get_config().get_model_path(train_seed - 1, False, Mode.TRAIN)
+                        copy_model(model_path, prev_model_path)
+            run_model("train", train_min, num_workers, train_seed, costs, mode)
+        # always copy weights during cv
+        if mode == Mode.CV:
+            model_path = get_config().get_model_path(train_seed, costs, Mode.TRAIN)
+            cv_model_path = get_config().get_model_path(train_seed, costs, Mode.CV)
+            copy_model(cv_model_path, model_path)
+            run_model("cv", train_min, num_workers, train_seed, costs, mode)
+        if mode == Mode.LOG:
+            run_model("log", log_min, 1, train_seed, costs, mode)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('--train', action='store_true', help="Train")
-    parser.add_argument('--cv', action='store_true', help="Cross validate")
+    parser.add_argument('--mode', default="train", help="Network mode")
     parser.add_argument('--costs', action='store_true', help="Model include costs")
     parser.add_argument('--copy', action='store_true', help="Replace weights")
 
     args = parser.parse_args()
-    main(args.train, args.cv, args.costs, args.copy)
+    mode = parse_mode(args.mode)
+    main(mode, args.costs, args.copy)

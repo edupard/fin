@@ -9,6 +9,7 @@ import os
 from config import StateMode, EnvironmentType, get_config as get_config
 from env.env import State
 
+
 def get_state_bit(state):
     if state == State.FLAT:
         return 0.0
@@ -16,6 +17,7 @@ def get_state_bit(state):
         return 1.0
     elif state == State.SHORT:
         return -1.0
+
 
 def discount_gamma(x):
     return scipy.signal.lfilter(get_config().b_gamma, [1], x[::-1], axis=0)[::-1]
@@ -163,6 +165,9 @@ should be computed.
             grads_and_vars = list(zip(grads, self.network.var_list))
             inc_step = self.global_step.assign_add(tf.shape(pi.x)[0])
 
+            self.steps = tf.placeholder(tf.int32, shape=())
+            self.inc_step = self.global_step.assign_add(self.steps)
+
             # each worker has a different set of adam optimizer parameters
             opt = tf.train.AdamOptimizer(get_config().learning_rate)
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
@@ -239,7 +244,7 @@ should be computed.
                     break
                     # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
 
-    def cross_validate(self, sess):
+    def log(self, sess):
         sess.run(self.sync)
         cv_folder_path = os.path.join('results', get_config().model, 'cv')
         train_folder_path = os.path.join('results', get_config().model, 'train')
@@ -323,28 +328,33 @@ should be computed.
 
         rollout = next(self.rg)
 
-        batch = process_rollout(rollout)
+        if not get_config().is_cv_mode():
+            batch = process_rollout(rollout)
 
-        should_compute_summary = self.task == 0 and self.local_steps % 11 == 0
+            should_compute_summary = self.task == 0 and self.local_steps % 11 == 0
 
-        if should_compute_summary:
-            fetches = [self.summary_op, self.train_op, self.global_step]
+            if should_compute_summary:
+                fetches = [self.summary_op, self.train_op, self.global_step]
+            else:
+                fetches = [self.train_op, self.global_step]
+
+            feed_dict = {
+                self.local_network.x: batch.si,
+                self.local_network.pos: batch.pos,
+                self.ac: batch.a,
+                self.adv: batch.adv,
+                self.r: batch.r,
+                self.local_network.state_in[0]: batch.features[0],
+                self.local_network.state_in[1]: batch.features[1],
+            }
+
+            fetched = sess.run(fetches, feed_dict=feed_dict)
+
+            if should_compute_summary:
+                self.summary_writer.add_summary(tf.Summary.FromString(fetched[0]), fetched[-1])
+                self.summary_writer.flush()
+            self.local_steps += 1
         else:
-            fetches = [self.train_op, self.global_step]
-
-        feed_dict = {
-            self.local_network.x: batch.si,
-            self.local_network.pos: batch.pos,
-            self.ac: batch.a,
-            self.adv: batch.adv,
-            self.r: batch.r,
-            self.local_network.state_in[0]: batch.features[0],
-            self.local_network.state_in[1]: batch.features[1],
-        }
-
-        fetched = sess.run(fetches, feed_dict=feed_dict)
-
-        if should_compute_summary:
-            self.summary_writer.add_summary(tf.Summary.FromString(fetched[0]), fetched[-1])
-            self.summary_writer.flush()
-        self.local_steps += 1
+            # possibly not preciese increment - but it doesn matter
+            sess.run([self.inc_step], {self.steps: get_config().buffer_length})
+            self.local_steps += 1
