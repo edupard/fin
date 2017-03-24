@@ -8,15 +8,37 @@ import time
 from gym import spaces
 from gym.spaces.box import Box
 import cv2
+from PIL import Image
 
 from data_source.data_source import get_datasource
 from config import get_config, RenderingBackend, RewardType, RewardAlgo, StateMode
 from env.action import Action, convert_to_action
 
 
+# counter = 0
+
+
 def _process_frame(frame):
     frame = frame.reshape((get_config().window_px_width, get_config().window_px_height, 3))
+
+    # global counter
+    # counter += 1
+    # # save rgb image
+    # if counter == 50:
+    #     image = Image.fromarray(frame.reshape([get_config().window_px_width, get_config().window_px_height, 3]))
+    #     image.save('rgb.png')
+
     frame = frame.mean(2)
+    # if you want human to percieve this image use weighted average instead
+    # frame = np.average(frame, axis=2, weights=[0.299,0.587,0.114])
+
+    # # save gray image
+    # if counter == 50:
+    #     gray = frame.astype(np.uint8)
+    #     gray = gray.reshape([get_config().window_px_width, get_config().window_px_height])
+    #     image = Image.fromarray(gray, mode='L')
+    #     image.save('gray.png')
+
     frame = frame.astype(np.float32)
     frame *= (1.0 / 255.0)
     frame = np.reshape(frame, [get_config().window_px_width, get_config().window_px_height, 1])

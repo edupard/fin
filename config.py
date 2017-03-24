@@ -83,7 +83,7 @@ class Config(object):
     rolling_px_factor = 0.2
     rolling_px_range_factor = 0.9
     # Set to true if you want to draw line during training
-    draw_training_line = False
+    draw_training_line = True
 
     # Reward algo
     reward_type = RewardType.URPL
