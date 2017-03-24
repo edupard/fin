@@ -117,13 +117,15 @@ class Config(object):
 
     learning_rate = 0.0001
     enthropy_weight = 0.001
-    state_mode = StateMode.TWO_D
+    state_mode = StateMode.ONE_D
     conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     rnn_2d_size = 8
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
-    conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
-    rnn_1d_size = 4  # 255
+    # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
+    # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
+    conv_layers_1d = [(3, 2, 200), (3, 2, 150), (3, 2, 150), (3, 2, 100), (3, 2, 100), (3, 2, 50)]
+    rnn_1d_size = 64#4  # 255
     max_grad_norm = 40.0
     propogate_position_to_rnn = False
 
