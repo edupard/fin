@@ -70,7 +70,7 @@ class Config(object):
     # bar_min = 24 * 60
     # Brent
     ticker = 'QO'
-    bar_min = 60  # 15
+    bar_min = 5  # 60  # 15
     # Experiments
     # ticker = 'EXP'
     # bar_min = 30
@@ -115,10 +115,8 @@ class Config(object):
     render = False
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 6000  # 3000  # 6000 * 4
+    train_length = 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
-    # train_length = 10000
-    # train_episode_length = train_length // 13
     retrain_interval = train_episode_length
     train_seed = 0
 
@@ -146,14 +144,15 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     # fit perfectly
-    #conv_layers_1d = [(3, 2, 200), (3, 2, 150), (3, 2, 150), (3, 2, 100), (3, 2, 100), (3, 2, 50)]
-    #rnn_1d_size = 64  # 4  # 255
+    # conv_layers_1d = [(3, 2, 200), (3, 2, 150), (3, 2, 150), (3, 2, 100), (3, 2, 100), (3, 2, 50)]
+    # rnn_1d_size = 64  # 4  # 255
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32)]
     # rnn_1d_size = 4
-    conv_layers_1d = [(3, 2, 4), (3, 2, 4)]
-    rnn_1d_size = 2
+    # conv_layers_1d = [(3, 2, 4), (3, 2, 4)]
+    # rnn_1d_size = 2
 
-
+    conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
+    rnn_1d_size = 64
 
     max_grad_norm = 40.0
     propogate_position_to_rnn = False
