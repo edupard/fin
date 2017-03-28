@@ -47,7 +47,17 @@ def create_train_shell_commands(session, num_workers, train_seed, costs, mode, s
         'worker.py',
         '--num-workers', str(num_workers)]
 
-    cmds_map = [wrap_cmd_for_tmux(session, "ps", base_cmd + ["--job-name", "ps"])]
+    args = ["--job-name", "ps"]
+    if costs:
+        args += ["--costs"]
+    args += ["--mode"]
+    if mode == Mode.TRAIN:
+        args += ["train"]
+    if mode == Mode.CV:
+        args += ["cv"]
+    if mode == Mode.LOG:
+        args += ["log"]
+    cmds_map = [wrap_cmd_for_tmux(session, "ps", base_cmd + args)]
     conda_cmds_map = [wrap_cmd_for_tmux(session, "ps", conda_cmd)]
     for i in range(num_workers):
         args = ["--job-name", "worker",
@@ -158,7 +168,17 @@ def create_validation_shell_commands(session, shell='bash'):
 def start_nt_processes(num_workers, train_seed, costs, mode):
     processes = []
     workers = []
-    proc = subprocess.Popen([sys.executable, "worker.py", "--job-name", "ps", "--num-workers", str(num_workers)])
+    args = [sys.executable, "worker.py", "--job-name", "ps", "--num-workers", str(num_workers)]
+    if costs:
+        args += ["--costs"]
+    args += ["--mode"]
+    if mode == Mode.TRAIN:
+        args += ["train"]
+    if mode == Mode.CV:
+        args += ["cv"]
+    if mode == Mode.LOG:
+        args += ["log"]
+    proc = subprocess.Popen(args)
     processes.append(proc)
     time.sleep(5)
     for idx in range(num_workers):
