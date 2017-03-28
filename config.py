@@ -132,7 +132,7 @@ class Config(object):
     keep_prob = 0.5
 
     learning_rate = 0.0001
-    enthropy_weight = 0.00001
+    enthropy_weight = 0.01
     state_mode = StateMode.ONE_D
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
@@ -151,7 +151,7 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32)]
     # rnn_1d_size = 4
     conv_layers_1d = [(3, 2, 4), (3, 2, 4)]
-    rnn_1d_size = 100
+    rnn_1d_size = 2
 
 
 
