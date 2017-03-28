@@ -55,7 +55,8 @@ def parse_mode(s_mode):
 class Config(object):
     # env factory config
     environment = EnvironmentType.FIN
-    model = 'qo_1h'
+    model = 'qo_5min'
+    # model = 'qo_1h'
     # model = 'qo_15min'
     base_log_dir = os.path.join('./models/', model)
 
@@ -125,20 +126,20 @@ class Config(object):
     algo_modification = True
     _lambda = 1.0
     gamma = 1.0
-    buffer_length = 20
-    fwd_buffer_length = 20 if algo_modification else 0
+    buffer_length = 100
+    fwd_buffer_length = buffer_length if algo_modification else 0
     keep_prob = 0.5
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    state_mode = StateMode.ONE_D
+    state_mode = StateMode.TWO_D
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 8), (3, 2, 4), (3, 2, 4), (3, 2, 2)]
     # conv_layers_2d = [(3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 3, 8)]
     # rnn_2d_size = 8
-    conv_layers_2d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 3, 4)]
-    rnn_2d_size = 4
+    conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 3, 32)]
+    rnn_2d_size = 32
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
