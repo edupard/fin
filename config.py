@@ -118,7 +118,7 @@ class Config(object):
     mode = Mode.TRAIN
     train_length = 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
-    retrain_interval = train_episode_length
+    retrain_interval = 2100 #train_episode_length
     train_seed = 0
 
     # Learning parameters

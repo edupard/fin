@@ -14,9 +14,9 @@ import argparse
 draw_deals = True
 # PL
 draw_ccy = True
-draw_ccy_c = False
+draw_ccy_c = True
 draw_pct = True
-draw_pct_c = False
+draw_pct_c = True
 draw_lr = False
 draw_lr_c = False
 # NN
