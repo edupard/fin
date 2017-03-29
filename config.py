@@ -55,8 +55,8 @@ def parse_mode(s_mode):
 class Config(object):
     # env factory config
     environment = EnvironmentType.FIN
-    model = 'qo_5min'
-    # model = 'qo_1h'
+    # model = 'qo_5min'
+    model = 'qo_1h'
     # model = 'qo_15min'
     base_log_dir = os.path.join('./models/', model)
 
@@ -71,7 +71,7 @@ class Config(object):
     # bar_min = 24 * 60
     # Brent
     ticker = 'QO'
-    bar_min = 5  # 60  # 15
+    bar_min = 60  # 5  # 60  # 15
     # Experiments
     # ticker = 'EXP'
     # bar_min = 30
@@ -116,7 +116,7 @@ class Config(object):
     render = False
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 12 * 6000  # 3000  # 6000 * 4
+    train_length = 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
     retrain_interval = train_episode_length
     train_seed = 0
@@ -132,7 +132,7 @@ class Config(object):
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    state_mode = StateMode.TWO_D
+    state_mode = StateMode.ONE_D
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 8), (3, 2, 4), (3, 2, 4), (3, 2, 2)]
@@ -151,9 +151,11 @@ class Config(object):
     # rnn_1d_size = 4
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4)]
     # rnn_1d_size = 2
+    # conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
+    # rnn_1d_size = 64
 
-    conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
-    rnn_1d_size = 64
+    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
+    rnn_1d_size = 13
 
     max_grad_norm = 40.0
     propogate_position_to_rnn = False
