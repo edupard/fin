@@ -125,7 +125,7 @@ class Config(object):
     num_global_steps = 20e8
     algo_modification = True
     _lambda = 1.0
-    gamma = 1.0
+    gamma = 0.95
     buffer_length = 100
     fwd_buffer_length = buffer_length if algo_modification else 0
     keep_prob = 0.5
