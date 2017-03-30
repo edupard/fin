@@ -106,9 +106,9 @@ class Config(object):
     reward_type = RewardType.URPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
-    costs_effective = 0.03
     costs_on = False
-    costs = 0.0
+    costs_adv = False
+    costs = 0.03
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
     reward_scale_multiplier = 100.0
@@ -177,7 +177,6 @@ class Config(object):
 
     def turn_on_costs(self):
         self.costs_on = True
-        self.costs = self.costs_effective
         self.reset_log_dir()
 
     def set_mode(self, s_mode):

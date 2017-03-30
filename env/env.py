@@ -88,11 +88,17 @@ class Info:
         self.next_time = None
 
         self.ccy = 0.0
+        self.ccy_cost = 0.0
         self.ccy_c = 0.0
+        self.ccy_c_cost = 0.0
         self.pct = 0.0
+        self.pct_cost = 0.0
         self.pct_c = 0.0
+        self.pct_c_cost = 0.0
         self.lr = 0.0
+        self.lr_cost = 0.0
         self.lr_c = 0.0
+        self.lr_c_cost = 0.0
 
         self.state = State.FLAT
 
@@ -355,20 +361,34 @@ class Environment:
 
         # Calculate reward
         ccy = 0.0
+        ccy_cost = 0.0
         ccy_c = 0.0
+        ccy_c_cost = 0.0
         pct = 0.0
+        pct_cost = 0.0
         pct_c = 0.0
+        pct_c_cost = 0.0
         lr = 0.0
+        lr_cost = 0.0
         lr_c = 0.0
+        lr_c_cost = 0.0
 
+        # zero cost - to make code more readable
+        zc = 0.0
         c = get_config().costs
 
         # Check if we liquidate position
         if (self._state == State.LONG and action != Action.BUY) or (
                         self._state == State.SHORT and action != Action.SELL):
-            ccy, pct, lr = Environment.calc_reward(ccy, pct, lr, self._state, self._ent_px, c, px, c)
+            ccy, pct, lr = Environment.calc_reward(ccy, pct, lr, self._state, self._ent_px, zc, px, zc)
+            ccy_cost, pct_cost, lr_cost = Environment.calc_reward(ccy_cost, pct_cost, lr_cost, self._state,
+                                                                  self._ent_px, c, px, c)
+
             ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, self._prev_px, 0,
-                                                         px, c)
+                                                         px, zc)
+            ccy_c_cost, pct_c_cost, lr_c_cost = Environment.calc_reward(ccy_c_cost, pct_c_cost, lr_c_cost, self._state,
+                                                                        self._prev_px, 0,
+                                                                        px, c)
             self._state = State.FLAT
             self._ent_px = None
             self._ent_time = None
@@ -380,6 +400,9 @@ class Environment:
                 self._info.short_length += 1
             ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, self._prev_px, 0,
                                                          px, 0)
+            ccy_c_cost, pct_c_cost, lr_c_cost = Environment.calc_reward(ccy_c_cost, pct_c_cost, lr_c_cost, self._state,
+                                                                        self._prev_px, 0,
+                                                                        px, 0)
         # Check if we open new position
         if self._state == State.FLAT and action != Action.FLAT:
             if action == Action.BUY:
@@ -391,14 +414,20 @@ class Environment:
             self._ent_px = px
             self._ent_time = self._current_time
             self._state = State.LONG if action == Action.BUY else State.SHORT
-            ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, px, c, px, 0)
+            ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, px, zc, px, 0)
+            ccy_c_cost, pct_c_cost, lr_c_cost = Environment.calc_reward(ccy_c_cost, pct_c_cost, lr_c_cost, self._state,
+                                                                        px, c, px, 0)
         self._current_time = next_time
         self._prev_px = px
 
         # handle terminal state
         if d and self._state != State.FLAT:
-            ccy, pct, lr = Environment.calc_reward(ccy, pct, lr, self._state, self._ent_px, c, next_px, c)
-            ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, px, 0, next_px, c)
+            ccy, pct, lr = Environment.calc_reward(ccy, pct, lr, self._state, self._ent_px, zc, next_px, zc)
+            ccy_cost, pct_cost, lr_cost = Environment.calc_reward(ccy_cost, pct_cost, lr_cost, self._state,
+                                                                  self._ent_px, c, next_px, c)
+            ccy_c, pct_c, lr_c = Environment.calc_reward(ccy_c, pct_c, lr_c, self._state, px, 0, next_px, zc)
+            ccy_c_cost, pct_c_cost, lr_c_cost = Environment.calc_reward(ccy_c_cost, pct_c_cost, lr_c_cost, self._state,
+                                                                        px, 0, next_px, c)
             self._state = State.FLAT
             self._ent_px = None
             self._ent_time = None
@@ -416,25 +445,31 @@ class Environment:
         rs = get_config().reward_scale_multiplier
         if get_config().reward_type == RewardType.RPL:
             switcher = {
-                RewardAlgo.CCY: ccy,
-                RewardAlgo.PCT: pct * rs,
-                RewardAlgo.LR: lr * rs,
+                RewardAlgo.CCY: (ccy, ccy_cost),
+                RewardAlgo.PCT: (pct * rs, pct_cost * rs),
+                RewardAlgo.LR: (lr * rs, lr_cost * rs),
             }
             r = switcher.get(get_config().reward_algo)
         elif get_config().reward_type == RewardType.URPL:
             switcher = {
-                RewardAlgo.CCY: ccy_c,
-                RewardAlgo.PCT: pct_c * rs,
-                RewardAlgo.LR: lr_c * rs,
+                RewardAlgo.CCY: (ccy_c, ccy_c_cost),
+                RewardAlgo.PCT: (pct_c * rs, pct_c_cost * rs),
+                RewardAlgo.LR: (lr_c * rs, lr_c_cost * rs),
             }
             r = switcher.get(get_config().reward_algo)
         # Update info
         self._info.ccy = ccy
+        self._info.ccy_cost = ccy_cost
         self._info.ccy_c = ccy_c
+        self._info.ccy_c_cost = ccy_c_cost
         self._info.pct = pct * 100.0
+        self._info.pct_cost = pct_cost * 100.0
         self._info.pct_c = pct_c * 100.0
+        self._info.pct_c_cost = pct_c_cost * 100.0
         self._info.lr = lr * 100.0
+        self._info.lr_cost = lr_cost * 100.0
         self._info.lr_c = lr_c * 100.0
+        self._info.lr_c_cost = lr_c_cost * 100.0
         self._info.state = self._state
 
         return self._get_state(), r, d, self._info

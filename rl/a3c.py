@@ -39,6 +39,11 @@ given a rollout, compute its returns and the advantage
     batch_poses = np.asarray(rollout.poses)
     batch_a = np.asarray(rollout.actions)
     rewards = np.asarray(rollout.rewards)
+    rewards_costs = np.asarray(rollout.rewards_costs)
+    costs_adv = rewards_costs - rewards
+    if get_config().costs_on and not get_config().costs_adv:
+        rewards = rewards_costs
+
     vpred_t = np.asarray(rollout.values + [rollout.r])
 
     rewards_plus_v = np.asarray(rollout.rewards + [rollout.r])
@@ -60,6 +65,8 @@ given a rollout, compute its returns and the advantage
     batch_poses = batch_poses[:get_config().buffer_length, ]
     batch_a = batch_a[:get_config().buffer_length, ]
     batch_adv = batch_adv[:get_config().buffer_length, ]
+    if get_config().costs_adv:
+        batch_adv = batch_adv + costs_adv[:get_config().buffer_length, ]
     batch_r = batch_r[:get_config().buffer_length, ]
     return Batch(batch_si, batch_poses, batch_a, batch_adv, batch_r, rollout.terminal, features)
 
@@ -78,17 +85,19 @@ once it has processed enough steps.
         self.poses = []
         self.actions = []
         self.rewards = []
+        self.rewards_costs = []
         self.values = []
         self.r = 0.0
         self.terminal = False
         self.features = []
         self.len = 0
 
-    def add(self, state, pos, action, reward, value, terminal, features):
+    def add(self, state, pos, action, reward, reward_costs, value, terminal, features):
         self.states += [state]
         self.poses += [np.array([pos]).reshape((1))]
         self.actions += [action]
         self.rewards += [reward]
+        self.rewards_costs += [reward_costs]
         self.values += [value]
         self.terminal = terminal
         self.features += [features]
@@ -184,6 +193,7 @@ should be computed.
         last_features = self.local_network.get_initial_features()
         length = 0
         rewards = 0
+        rewards_cost = 0
         pending_rollouts = []
 
         while True:
@@ -195,14 +205,17 @@ should be computed.
                 # argmax to convert from one-hot
                 a = action.argmax()
                 state, reward, terminal, info = self.env.step(a)
+                r, r_c = reward
+
                 if get_config().render:
                     self.env.render()
 
                 # collect the experience
                 for rollout in pending_rollouts:
-                    rollout.add(last_state, pos, action, reward, value_, terminal, last_features)
+                    rollout.add(last_state, pos, action, r, r_c, value_, terminal, last_features)
                 length += 1
-                rewards += reward
+                rewards += r
+                rewards_cost += r_c
 
                 last_state = state
                 if get_config().environment == EnvironmentType.FIN:
@@ -219,7 +232,8 @@ should be computed.
                     last_state = self.env.reset()
                     last_features = self.local_network.get_initial_features()
 
-                    print("Episode finished. Sum of rewards: %.3f Length: %d" % (rewards, length))
+                    print("Episode finished. Rewards: %.3f Rewards with costs: %.3f Length: %d" % (
+                        rewards, rewards_cost, length))
                     if get_config().environment == EnvironmentType.FIN:
                         print('Positions: {} long deals: {} length: {} short deals: {} length: {}'.format(
                             info.long + info.short,
@@ -228,7 +242,8 @@ should be computed.
                             info.short,
                             info.short_length))
                     summary = tf.Summary()
-                    summary.value.add(tag='Total reward', simple_value=float(rewards))
+                    summary.value.add(tag='Reward', simple_value=float(rewards))
+                    summary.value.add(tag='Reward with cost', simple_value=float(rewards_cost))
                     summary.value.add(tag='Round length', simple_value=float(length))
                     if get_config().environment == EnvironmentType.FIN:
                         summary.value.add(tag='Long deals', simple_value=float(info.long))
@@ -240,6 +255,7 @@ should be computed.
                     self.summary_writer.flush()
                     length = 0
                     rewards = 0
+                    rewards_cost = 0
                     pending_rollouts.clear()
                     break
                     # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
@@ -261,6 +277,8 @@ should be computed.
 
         train_rewards = 0.0
         cv_rewards = 0.0
+        train_rewards_costs = 0.0
+        cv_rewards_costs = 0.0
         t_l = 0
         cv_l = 0
         train_rows = []
@@ -274,16 +292,20 @@ should be computed.
 
             a = action.argmax()
             state, reward, terminal, info = self.env.step(a)
+            r, r_c = reward
+
             if get_config().render:
                 self.env.render()
 
             train_step = t_l <= train_length
             if train_step:
                 t_l += 1
-                train_rewards += reward
+                train_rewards += r
+                train_rewards_costs += r_c
             else:
                 cv_l += 1
-                cv_rewards += reward
+                cv_rewards += r
+                cv_rewards_costs += r_c
 
             row = [info.time,
                    info.price,
@@ -302,10 +324,8 @@ should be computed.
 
             if train_step:
                 train_rows.append(np_row)
-                # train_writer.writerow(row)
             else:
                 cv_rows.append(np_row)
-                # cv_writer.writerow(row)
 
             last_state = state
             if get_config().environment == EnvironmentType.FIN:
@@ -320,8 +340,9 @@ should be computed.
         np.savetxt(train_file_path, t_d, delimiter=',')
         np.savetxt(cv_file_path, cv_d, delimiter=',')
 
-        print("Episode finished. Train rewards: %.3f. Cv rewards: %.3f Train length: %d Cv length: %d" % (
-            train_rewards, cv_rewards, t_l, cv_l))
+        print(
+            "Episode finished. Train rewards: %.3f With costs: %.3f Cv rewards: %.3f With costs: %.3f Train length: %d Cv length: %d" % (
+                train_rewards, train_rewards_costs, cv_rewards, cv_rewards_costs, t_l, cv_l))
 
     def process(self, sess):
         sess.run(self.sync)  # copy weights from shared to local
