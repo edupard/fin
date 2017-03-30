@@ -106,7 +106,7 @@ class Config(object):
     reward_type = RewardType.URPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
-    costs_effective = 0.03
+    costs_effective = 0.001#0.03
     costs_on = False
     costs = 0.0
     # NB: PCT reward do not converge due to floating point arithmetic precision
@@ -155,10 +155,10 @@ class Config(object):
     # rnn_1d_size = 64
 
     conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
-    rnn_1d_size = 14
+    rnn_1d_size = 13
 
     max_grad_norm = 40.0
-    propogate_position_to_rnn = True
+    propogate_position_to_rnn = False
 
     def get_model_path(self, train_seed, costs, mode):
         model_dir = 'costs' if costs else 'no_costs'
