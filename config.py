@@ -106,7 +106,7 @@ class Config(object):
     reward_type = RewardType.URPL
     reward_algo = RewardAlgo.PCT
     # slippage + commission
-    costs_effective = 0.001#0.03
+    costs_effective = 0.03
     costs_on = False
     costs = 0.0
     # NB: PCT reward do not converge due to floating point arithmetic precision
