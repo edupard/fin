@@ -107,7 +107,7 @@ class Config(object):
     reward_algo = RewardAlgo.PCT
     # slippage + commission
     costs_on = False
-    costs_adv = False
+    costs_adv = True
     costs = 0.03
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
@@ -118,7 +118,7 @@ class Config(object):
     mode = Mode.TRAIN
     train_length = 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
-    retrain_interval = 2100 #train_episode_length
+    retrain_interval = 2100  # train_episode_length
     train_seed = 0
 
     # Learning parameters
