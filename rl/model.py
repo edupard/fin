@@ -62,8 +62,8 @@ class LSTMPolicy(object):
         if get_config().environment == EnvironmentType.FIN:
             if get_config().state_mode == StateMode.TWO_D:
                 i = 0
-                for k, s, f in get_config().conv_layers_2d:
-                    x = tf.nn.elu(conv2d(x, f, "l{}".format(i + 1), [k, k], [s, s]))
+                for k_w, k_h, s_w, s_h, f in get_config().conv_layers_2d:
+                    x = tf.nn.elu(conv2d(x, f, "l{}".format(i + 1), [k_w, k_h], [s_w, s_h]))
                     i += 1
             elif get_config().state_mode == StateMode.ONE_D:
                 i = 0

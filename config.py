@@ -55,8 +55,8 @@ def parse_mode(s_mode):
 class Config(object):
     # env factory config
     environment = EnvironmentType.FIN
-    # model = 'qo_5min'
-    model = 'qo_1h'
+    model = 'qo_5min'
+    # model = 'qo_1h'
     # model = 'qo_15min'
     base_log_dir = os.path.join('./models/', model)
 
@@ -71,7 +71,7 @@ class Config(object):
     # bar_min = 24 * 60
     # Brent
     ticker = 'QO'
-    bar_min = 60  # 5  # 60  # 15
+    bar_min = 5  # 60  # 15
     # Experiments
     # ticker = 'EXP'
     # bar_min = 30
@@ -116,29 +116,32 @@ class Config(object):
     render = False
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_length = 12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
-    retrain_interval = 2100  # train_episode_length
+    retrain_interval = train_episode_length  # 2100  # train_episode_length
     train_seed = 0
 
     # Learning parameters
     num_global_steps = 20e8
     algo_modification = True
-    _lambda = 1.0
-    gamma = 0.95
+    _lambda = 0.96  # 1.0
+    gamma = 0.98  # 0.95
     buffer_length = 100
     fwd_buffer_length = buffer_length if algo_modification else 0
     keep_prob = 0.5
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    state_mode = StateMode.ONE_D
+    state_mode = StateMode.TWO_D
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 8), (3, 2, 4), (3, 2, 4), (3, 2, 2)]
     # conv_layers_2d = [(3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 3, 8)]
     # rnn_2d_size = 8
-    conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 3, 32)]
+    # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 3, 32)]
+    # rnn_2d_size = 32
+
+    conv_layers_2d = [(3, 8, 2, 4, 32), (3, 8, 2, 4, 16), (3, 6, 2, 3, 8), (3, 4, 2, 4, 4)]
     rnn_2d_size = 32
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
@@ -153,7 +156,7 @@ class Config(object):
     # rnn_1d_size = 2
     # conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
     # rnn_1d_size = 64
-
+    # leha model - 1h 6000 bars
     conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
     rnn_1d_size = 13
 

@@ -46,7 +46,7 @@ given a rollout, compute its returns and the advantage
 
     vpred_t = np.asarray(rollout.values + [rollout.r])
 
-    rewards_plus_v = np.asarray(rollout.rewards + [rollout.r])
+    rewards_plus_v = np.asarray(rewards + [rollout.r])
     if get_config().algo_modification:
         batch_r = discount_gamma(rewards_plus_v)[:-1]
     else:
