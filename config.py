@@ -55,8 +55,8 @@ def parse_mode(s_mode):
 class Config(object):
     # env factory config
     environment = EnvironmentType.FIN
-    # model = 'qo_5min'
-    model = 'qo_1h'
+    model = 'qo_5min'
+    # model = 'qo_1h'
     # model = 'qo_15min'
     base_log_dir = os.path.join('./models/', model)
 
@@ -132,7 +132,7 @@ class Config(object):
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    state_mode = StateMode.ONE_D
+    state_mode = StateMode.TWO_D
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 8), (3, 2, 4), (3, 2, 4), (3, 2, 2)]
