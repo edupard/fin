@@ -10,11 +10,19 @@
 # r_d = np.genfromtxt('test.csv', delimiter=',', dtype=np.float64)
 # i = 0
 
-a = 1.
-b = 1.
+# a = 1.
+# b = 1.
+#
+# x = tuple(map(sum, zip((a, b), (1.0,1.0))))
+#
+#
+# print(a)
+# print(b)
 
-x = tuple(map(sum, zip((a, b), (1.0,1.0))))
+import time
 
-
-print(a)
-print(b)
+for i in range(3):
+    print('.', sep=' ', end='', flush=True)
+    time.sleep(1)
+print('')
+print('Come on')
