@@ -107,7 +107,7 @@ class Config(object):
     reward_algo = RewardAlgo.PCT
     # slippage + commission
     costs_on = False
-    costs_adv = True
+    costs_adv = False
     costs = 0.03
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
@@ -132,7 +132,7 @@ class Config(object):
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    state_mode = StateMode.TWO_D
+    state_mode = StateMode.ONE_D
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 8), (3, 2, 4), (3, 2, 4), (3, 2, 2)]
@@ -143,9 +143,9 @@ class Config(object):
 
     # conv_layers_2d = [(3, 8, 2, 4, 32), (3, 8, 2, 4, 16), (3, 6, 2, 3, 8), (3, 4, 2, 4, 4)]
     # rnn_2d_size = 32
-    conv_layers_2d = [(3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 3, 3, 32)]
+    conv_layers_2d = [(3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32),
+                      (3, 3, 2, 2, 32), (3, 3, 3, 3, 32)]
     rnn_2d_size = 32
-
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
@@ -160,8 +160,11 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
     # rnn_1d_size = 64
     # leha model - 1h 6000 bars
-    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
-    rnn_1d_size = 13
+    # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
+    # rnn_1d_size = 13
+    # more complicated model
+    conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (4, 4, 32)]
+    rnn_1d_size = 32
 
     max_grad_norm = 40.0
     propogate_position_to_rnn = False
