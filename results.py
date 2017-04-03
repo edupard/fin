@@ -55,15 +55,20 @@ def create_axis(fig, shared_ax, id, y_fmt_str):
     return ax
 
 
-def visualize(data_folder_name):
-    folder_path = os.path.join('results', get_config().model, data_folder_name)
-    files = fnmatch.filter(os.listdir(folder_path), '*.csv')
+def visualize(data_set_name):
+    folder_path = os.path.join('results', get_config().model)
+    files = fnmatch.filter(os.listdir(folder_path), '%s_*.csv'.format(data_set_name))
 
-    def extract_index(file_name):
-        s_idx = file_name.split('.')[0]
+    def extract_seed(file_name):
+        s_idx = file_name.split('_')[1]
         return int(s_idx)
 
-    files = sorted(files, key=lambda x: extract_index(x))
+    def extract_global_step(file_name):
+        s_global_step = file_name.split('_')[2]
+        s_global_step = s_global_step.split('.')[0]
+        return int(s_global_step)
+
+    files = sorted(files, key=lambda x: (extract_seed(x), -extract_global_step(x)))
     t_a = []
     p_a = []
     n_t_a = []
@@ -79,7 +84,13 @@ def visualize(data_folder_name):
     p_f_a = []
     p_l_a = []
     p_s_a = []
+    curr_seed = -1
     for file_name in files:
+        seed = extract_seed(file_name)
+        if seed == curr_seed:
+            continue
+        curr_seed = seed
+
         file_path = os.path.join(folder_path, file_name)
         results = np.genfromtxt(file_path, delimiter=',', dtype=np.float64)
         if results.shape[0] == 0:
@@ -217,7 +228,7 @@ def visualize(data_folder_name):
     subplot_idx += 1
     p_ax = create_axis(fig, None, subplot_idx, '%.2f')
     last_axes = p_ax
-    p_ax.set_title("%s Sharp ratio: %.3f" % (data_folder_name.upper(), sharp_ratio))
+    p_ax.set_title("%s Sharp ratio: %.3f" % (data_set_name.upper(), sharp_ratio))
     px, px_t = extract_data_axes(make_step_line(mpl_t, p))
     p_ax.plot_date(px_t, px, color='b', fmt='-')
 
@@ -332,7 +343,7 @@ if __name__ == '__main__':
     parser.add_argument('--cv', action='store_true', help="draw cv period")
     args = parser.parse_args()
     if args.cv:
-        visualize('cv')
+        visualize('test')
     if args.train:
         visualize('train')
     plt.show(True)

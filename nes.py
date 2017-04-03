@@ -48,3 +48,8 @@ for i in range(300):
   # is just an efficient way to sum up all the rows of the noise matrix N,
   # where each row N[j] is weighted by A[j]
   w = w + alpha/(npop*sigma) * np.dot(N.T, A)
+
+  solution = np.array([1, 0, -1])
+  for i in range(300):
+    w = np.random.randint(-1, 2, 3)  # our initial guess is random
+    R = np.zeros(npop)

@@ -285,20 +285,15 @@ class Environment:
 
         start = get_config().ww + get_config().retrain_interval * get_config().train_seed
         # For train loop we must lie inside data
-        if not get_config().is_evaluation() and start + get_config().train_episode_length > self._data_length:
+        if not get_config().is_test_mode() and start + get_config().train_episode_length > self._data_length:
             raise "train interval lie outside of availiable data"
 
         self._ep_start_idx = np.random.randint(start,
                                                high=start + get_config().train_length - get_config().train_episode_length + 1)
         self._ep_end_idx = self._ep_start_idx + get_config().train_episode_length
-        # overwrite start and end for log mode
-        if get_config().is_log_mode():
+        # overwrite start and end for test mode
+        if get_config().is_test_mode():
             self._ep_start_idx = start
-            self._ep_end_idx = min(start + get_config().train_episode_length + get_config().retrain_interval,
-                                   self._data_length - 1)
-        # overwrite start and end for cv mode
-        elif get_config().is_cv_mode():
-            self._ep_start_idx = start + get_config().train_episode_length
             self._ep_end_idx = min(start + get_config().train_episode_length + get_config().retrain_interval,
                                    self._data_length - 1)
 

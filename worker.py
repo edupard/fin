@@ -35,7 +35,7 @@ def run(args, server):
     variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
     init_op = tf.variables_initializer(variables_to_save)
     init_all_op = tf.global_variables_initializer()
-    saver = FastSaver(variables_to_save)
+    saver = FastSaver(variables_to_save, keep_checkpoint_every_n_hours=0.15)
 
     var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
     logger.info('Trainable vars:')
@@ -67,25 +67,17 @@ def run(args, server):
     with sv.managed_session(server.target, config=config) as sess, sess.as_default():
         sess.run(trainer.sync)
         global_step = sess.run(trainer.global_step)
-        if get_config().is_log_mode():
-            logger.info("Starting log at step=%d", global_step)
-        elif get_config().is_cv_mode():
-            logger.info("Starting cv at step=%d", global_step)
+        if get_config().is_test_mode():
+            logger.info("Starting test at step=%d", global_step)
         else:
             logger.info("Starting training at step=%d", global_step)
-        if get_config().is_log_mode():
-            trainer.log(sess)
-        else:
-            while not sv.should_stop() and global_step < get_config().num_global_steps:
-                trainer.process(sess)
-                global_step = sess.run(trainer.global_step)
+        while not sv.should_stop() and global_step < get_config().num_global_steps:
+            trainer.process(sess)
+            global_step = sess.run(trainer.global_step)
 
     # Ask for all the services to stop.
     sv.stop()
-    if get_config().is_log_mode():
-        logger.info('log complete. worker stopped.')
-    else:
-        logger.info('reached %s steps. worker stopped.', global_step)
+    logger.info('reached %s steps. worker stopped.', global_step)
     stop_env(env)
     shutdown()
 

@@ -86,7 +86,7 @@ class LSTMPolicy(object):
                 size = get_config().rnn_1d_size
 
         lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
-        if not get_config().is_evaluation():
+        if not get_config().is_test_mode():
             keep_prob = get_config().keep_prob
             lstm = tf.nn.rnn_cell.DropoutWrapper(
                 lstm, input_keep_prob=keep_prob, output_keep_prob=keep_prob)

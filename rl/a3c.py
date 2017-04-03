@@ -94,6 +94,8 @@ once it has processed enough steps.
         self.terminal = False
         self.features = []
         self.len = 0
+        self.train_rows = []
+        self.test_rows = []
 
     def add(self, state, pos, action, reward, reward_costs, value, terminal, features):
         self.states += [state]
@@ -112,6 +114,10 @@ once it has processed enough steps.
 
 class A3C(object):
     def __init__(self, env, task, summary_writer):
+
+        self.train_rows = []
+        self.test_rows = []
+
         """
 An implementation of the A3C algorithm that is reasonably well-tuned for the VNC environments.
 Below, we will have a modest amount of complexity due to the way TensorFlow handles data parallelism.
@@ -197,7 +203,16 @@ should be computed.
         length = 0
         rewards = 0
         rewards_cost = 0
+        test_rewards = 0
+        test_rewards_costs = 0
+        test_length = 0
+        if get_config().is_test_mode():
+            test_rows = []
+            train_rows = []
+
         pending_rollouts = []
+        curr_progress = 0
+        total_length = get_config().train_length + get_config().retrain_interval if get_config().is_test_mode() else get_config().train_episode_length
 
         while True:
             pending_rollouts.append(Rollout())
@@ -216,27 +231,67 @@ should be computed.
                 # collect the experience
                 for rollout in pending_rollouts:
                     rollout.add(last_state, pos, action, r, r_c, value_, terminal, last_features)
+
                 length += 1
                 rewards += r
                 rewards_cost += r_c
+
+                progress = length // (total_length // 10)
+                if progress != curr_progress:
+                    print('.', sep=' ', end='', flush=True)
+                    curr_progress = progress
+
+                if get_config().is_test_mode():
+                    test_step = length > get_config().train_length
+                    if test_step:
+                        test_rewards += r
+                        test_rewards_costs += r_c
+                        test_length += 1
+
+                    row = [info.time,
+                           info.price,
+                           info.next_time,
+                           info.next_price,
+                           info.ccy,
+                           info.ccy_c,
+                           info.pct,
+                           info.pct_c,
+                           info.lr,
+                           info.lr_c,
+                           a]
+                    row.extend(value_)
+                    row.extend(action_distribution.reshape((-1)))
+                    np_row = np.array(row)
+                    if test_step:
+                        test_rows.append(np_row)
+                    else:
+                        train_rows.append(np_row)
 
                 last_state = state
                 if get_config().environment == EnvironmentType.FIN:
                     pos = get_state_bit(info.state)
                 last_features = features
 
-                if pending_rollouts[0].is_ready():
+                if pending_rollouts[0].is_ready() or terminal:
                     rollout = pending_rollouts.pop(0)
-                    if not terminal:
-                        rollout.r = self.local_network.value(last_state, pos, *last_features)
-                        yield rollout
+                    rollout.r = self.local_network.value(last_state, pos, *last_features)
+                    if get_config().is_test_mode() and terminal:
+                        rollout.train_rows = train_rows
+                        rollout.test_rows = test_rows
+                    yield rollout
 
                 if terminal:
+                    print('')
                     last_state = self.env.reset()
                     last_features = self.local_network.get_initial_features()
+                    if get_config().is_test_mode():
+                        print("R: %.3f R C: %.3f L: %d T R: %.3f T R C: %.3f T L: %d" % (
+                            rewards - test_rewards, rewards_cost - test_rewards_costs, length - test_length,
+                            test_rewards, test_rewards_costs, test_length))
+                    else:
+                        print("R: %.3f RWC: %.3f L: %d" % (
+                            rewards, rewards_cost, length))
 
-                    print("Episode finished. Rewards: %.3f Rewards with costs: %.3f Length: %d" % (
-                        rewards, rewards_cost, length))
                     if get_config().environment == EnvironmentType.FIN:
                         print('Positions: {} long deals: {} length: {} short deals: {} length: {}'.format(
                             info.long + info.short,
@@ -245,15 +300,19 @@ should be computed.
                             info.short,
                             info.short_length))
                     summary = tf.Summary()
-                    summary.value.add(tag='Reward', simple_value=float(rewards))
-                    summary.value.add(tag='Reward with cost', simple_value=float(rewards_cost))
-                    summary.value.add(tag='Round length', simple_value=float(length))
-                    if get_config().environment == EnvironmentType.FIN:
-                        summary.value.add(tag='Long deals', simple_value=float(info.long))
-                        summary.value.add(tag='Long length', simple_value=float(info.long_length))
-                        summary.value.add(tag='Short deals', simple_value=float(info.short))
-                        summary.value.add(tag='Short length', simple_value=float(info.short_length))
-                        summary.value.add(tag='Positions', simple_value=float(info.long + info.short))
+                    if get_config().is_test_mode():
+                        summary.value.add(tag='progress/test reward', simple_value=float(test_rewards))
+                        summary.value.add(tag='progress/test reward with cost', simple_value=float(test_rewards_costs))
+                    else:
+                        summary.value.add(tag='progress/reward', simple_value=float(rewards))
+                        summary.value.add(tag='progress/reward with cost', simple_value=float(rewards_cost))
+                        summary.value.add(tag='progress/round length', simple_value=float(length))
+                        if get_config().environment == EnvironmentType.FIN:
+                            summary.value.add(tag='progress/long deals', simple_value=float(info.long))
+                            summary.value.add(tag='progress/long length', simple_value=float(info.long_length))
+                            summary.value.add(tag='progress/short deals', simple_value=float(info.short))
+                            summary.value.add(tag='progress/short length', simple_value=float(info.short_length))
+                            summary.value.add(tag='progress/Positions', simple_value=float(info.long + info.short))
                     self.summary_writer.add_summary(summary, self.local_network.global_step.eval())
                     self.summary_writer.flush()
                     length = 0
@@ -263,122 +322,54 @@ should be computed.
                     break
                     # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
 
-    def log(self, sess):
-        sess.run(self.sync)
-        cv_folder_path = os.path.join('results', get_config().model, 'cv')
-        train_folder_path = os.path.join('results', get_config().model, 'train')
-        if not os.path.exists(cv_folder_path):
-            os.makedirs(cv_folder_path)
-        if not os.path.exists(train_folder_path):
-            os.makedirs(train_folder_path)
-        cv_file_path = os.path.join(cv_folder_path, '{}.csv'.format(get_config().train_seed))
-        train_file_path = os.path.join(train_folder_path, '{}.csv'.format(get_config().train_seed))
-
-        last_state = self.env.reset()
-        pos = 0
-        last_features = self.local_network.get_initial_features()
-
-        train_rewards = 0.0
-        cv_rewards = 0.0
-        train_rewards_costs = 0.0
-        cv_rewards_costs = 0.0
-        t_l = 0
-        cv_l = 0
-        train_rows = []
-        cv_rows = []
-
-        train_length = get_config().train_length
-
-        while True:
-            fetched = self.local_network.act(last_state, pos, *last_features)
-            action, action_distribution, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
-
-            a = action.argmax()
-            state, reward, terminal, info = self.env.step(a)
-            r, r_c = reward
-
-            if get_config().render:
-                self.env.render()
-
-            train_step = t_l <= train_length
-            if train_step:
-                t_l += 1
-                train_rewards += r
-                train_rewards_costs += r_c
-            else:
-                cv_l += 1
-                cv_rewards += r
-                cv_rewards_costs += r_c
-
-            row = [info.time,
-                   info.price,
-                   info.next_time,
-                   info.next_price,
-                   info.ccy,
-                   info.ccy_c,
-                   info.pct,
-                   info.pct_c,
-                   info.lr,
-                   info.lr_c,
-                   a]
-            row.extend(value_)
-            row.extend(action_distribution.reshape((-1)))
-            np_row = np.array(row)
-
-            if train_step:
-                train_rows.append(np_row)
-            else:
-                cv_rows.append(np_row)
-
-            last_state = state
-            if get_config().environment == EnvironmentType.FIN:
-                pos = get_state_bit(info.state)
-            last_features = features
-
-            if terminal:
-                break
-        t_d = np.vstack(train_rows)
-        cv_d = np.vstack(cv_rows)
-
-        np.savetxt(train_file_path, t_d, delimiter=',')
-        np.savetxt(cv_file_path, cv_d, delimiter=',')
-
-        print(
-            "Episode finished. Train rewards: %.3f With costs: %.3f Cv rewards: %.3f With costs: %.3f Train length: %d Cv length: %d" % (
-                train_rewards, train_rewards_costs, cv_rewards, cv_rewards_costs, t_l, cv_l))
-
     def process(self, sess):
         sess.run(self.sync)  # copy weights from shared to local
 
         rollout = next(self.rg)
 
-        if not get_config().is_cv_mode():
-            batch = process_rollout(rollout)
+        if not get_config().is_test_mode():
+            if rollout.is_ready():
+                batch = process_rollout(rollout)
 
-            should_compute_summary = self.task == 0 and self.local_steps % 11 == 0
+                should_compute_summary = self.task == 0 and self.local_steps != 0 and self.local_steps % 10 == 0
 
-            if should_compute_summary:
-                fetches = [self.summary_op, self.train_op, self.global_step]
-            else:
-                fetches = [self.train_op, self.global_step]
+                if should_compute_summary:
+                    fetches = [self.summary_op, self.train_op, self.global_step]
+                else:
+                    fetches = [self.train_op, self.global_step]
 
-            feed_dict = {
-                self.local_network.x: batch.si,
-                self.local_network.pos: batch.pos,
-                self.ac: batch.a,
-                self.adv: batch.adv,
-                self.r: batch.r,
-                self.local_network.state_in[0]: batch.features[0],
-                self.local_network.state_in[1]: batch.features[1],
-            }
+                feed_dict = {
+                    self.local_network.x: batch.si,
+                    self.local_network.pos: batch.pos,
+                    self.ac: batch.a,
+                    self.adv: batch.adv,
+                    self.r: batch.r,
+                    self.local_network.state_in[0]: batch.features[0],
+                    self.local_network.state_in[1]: batch.features[1],
+                }
 
-            fetched = sess.run(fetches, feed_dict=feed_dict)
+                fetched = sess.run(fetches, feed_dict=feed_dict)
 
-            if should_compute_summary:
-                self.summary_writer.add_summary(tf.Summary.FromString(fetched[0]), fetched[-1])
-                self.summary_writer.flush()
-            self.local_steps += 1
+                if should_compute_summary:
+                    self.summary_writer.add_summary(tf.Summary.FromString(fetched[0]), fetched[-1])
+                    self.summary_writer.flush()
+                self.local_steps += 1
         else:
-            # possibly not preciese increment - but it doesn matter
-            sess.run([self.inc_step], {self.steps: get_config().buffer_length})
-            self.local_steps += 1
+            if rollout.terminal:
+
+                folder_path = os.path.join('results', get_config().model)
+                if not os.path.exists(folder_path):
+                    os.makedirs(folder_path)
+
+                global_step = self.local_network.global_step.eval()
+
+                train_file_path = os.path.join(folder_path,
+                                               'train_{}_{}.csv'.format(get_config().train_seed, global_step))
+                test_file_path = os.path.join(folder_path,
+                                              'test_{}_{}.csv'.format(get_config().train_seed, global_step))
+
+                train_data = np.vstack(rollout.train_rows)
+                test_data = np.vstack(rollout.test_rows)
+
+                np.savetxt(train_file_path, train_data, delimiter=',')
+                np.savetxt(test_file_path, test_data, delimiter=',')

@@ -13,7 +13,6 @@ from config import get_config, Mode, parse_mode
 from data_source.data_source import get_datasource
 
 train_min = 1200
-log_min = 2.5
 
 start_seed_idx = 0
 stop_seed_idx = 0
@@ -39,7 +38,7 @@ def wrap_cmd_for_tmux(session, window, cmd):
     return window, "tmux send-keys -t {}:{} {} Enter".format(session, window, shlex.quote(cmd))
 
 
-def create_train_shell_commands(session, num_workers, train_seed, costs, mode, shell='bash'):
+def create_train_shell_commands(session, train_seed, costs, shell='bash'):
     conda_cmd = ['source', 'activate', 'rl_fin']
     base_cmd = [
         'CUDA_VISIBLE_DEVICES=',
@@ -50,13 +49,6 @@ def create_train_shell_commands(session, num_workers, train_seed, costs, mode, s
     args = ["--job-name", "ps"]
     if costs:
         args += ["--costs"]
-    args += ["--mode"]
-    if mode == Mode.TRAIN:
-        args += ["train"]
-    if mode == Mode.CV:
-        args += ["cv"]
-    if mode == Mode.LOG:
-        args += ["log"]
     cmds_map = [wrap_cmd_for_tmux(session, "ps", base_cmd + args)]
     conda_cmds_map = [wrap_cmd_for_tmux(session, "ps", conda_cmd)]
     for i in range(num_workers):
@@ -65,23 +57,19 @@ def create_train_shell_commands(session, num_workers, train_seed, costs, mode, s
                 "--seed", str(train_seed)]
         if costs:
             args += ["--costs"]
-        args += ["--mode"]
-        if mode == Mode.TRAIN:
-            args += ["train"]
-        if mode == Mode.CV:
-            args += ["cv"]
-        if mode == Mode.LOG:
-            args += ["log"]
+        if i == (num_workers - 1):
+            args += ["--mode", "test"]
+        else:
+            args += ["--mode", "train"]
 
         cmds_map += [wrap_cmd_for_tmux(session,
                                        "w-%d" % i, base_cmd + args)]
         conda_cmds_map += [wrap_cmd_for_tmux(session, "w-%d" % i, conda_cmd)]
 
     # tensorboard
-    if mode != Mode.LOG:
-        model_path = get_config().get_model_path(train_seed, costs, mode)
-        conda_cmds_map += [wrap_cmd_for_tmux(session, "tb", conda_cmd)]
-        cmds_map += [wrap_cmd_for_tmux(session, "tb", ["tensorboard", "--logdir", model_path, "--port", "12345"])]
+    model_path = get_config().get_model_path(train_seed, costs)
+    conda_cmds_map += [wrap_cmd_for_tmux(session, "tb", conda_cmd)]
+    cmds_map += [wrap_cmd_for_tmux(session, "tb", ["tensorboard", "--logdir", model_path, "--port", "12345"])]
     # htop
     cmds_map += [wrap_cmd_for_tmux(session, "htop", ["htop"])]
 
@@ -165,19 +153,12 @@ def create_validation_shell_commands(session, shell='bash'):
     return cmds, notes
 
 
-def start_nt_processes(num_workers, train_seed, costs, mode):
+def start_nt_processes(train_seed, costs):
     processes = []
     workers = []
     args = [sys.executable, "worker.py", "--job-name", "ps", "--num-workers", str(num_workers)]
     if costs:
         args += ["--costs"]
-    args += ["--mode"]
-    if mode == Mode.TRAIN:
-        args += ["train"]
-    if mode == Mode.CV:
-        args += ["cv"]
-    if mode == Mode.LOG:
-        args += ["log"]
     proc = subprocess.Popen(args)
     processes.append(proc)
     time.sleep(5)
@@ -190,23 +171,19 @@ def start_nt_processes(num_workers, train_seed, costs, mode):
                 ]
         if costs:
             args += ["--costs"]
-        args += ["--mode"]
-        if mode == Mode.TRAIN:
-            args += ["train"]
-        if mode == Mode.CV:
-            args += ["cv"]
-        if mode == Mode.LOG:
-            args += ["log"]
+        if idx == (num_workers - 1):
+            args += ["--mode", "test"]
+        else:
+            args += ["--mode", "train"]
         proc = subprocess.Popen(args)
         processes.append(proc)
         workers.append(proc)
     # tensorboard
-    if mode != Mode.LOG:
-        model_path = get_config().get_model_path(train_seed, costs, mode)
-        proc = subprocess.Popen(["tensorboard.exe",
-                                 "--logdir", model_path,
-                                 "--port", "12345"])
-        processes.append(proc)
+    model_path = get_config().get_model_path(train_seed, costs)
+    proc = subprocess.Popen(["tensorboard.exe",
+                             "--logdir", model_path,
+                             "--port", "12345"])
+    processes.append(proc)
 
     return processes, workers
 
@@ -227,25 +204,21 @@ def copy_model(path, prev_path):
         print("Can't copy model %s to %s" % (prev_path, path))
 
 
-def run_model(s_process, min, num_workers, train_seed, costs, mode):
+def run_model(train_seed, costs):
     if is_widows_os():
-        processes, workers = start_nt_processes(num_workers, train_seed, costs, mode)
+        processes, workers = start_nt_processes(train_seed, costs)
     else:
-        cmds, notes = create_train_shell_commands("a3c", num_workers, train_seed, costs, mode)
+        cmds, notes = create_train_shell_commands("a3c", train_seed, costs)
         os.environ["TMUX"] = ""
         os.system("\n".join(cmds))
 
-    if mode == Mode.LOG and is_widows_os():
-        print("Waiting for model to log")
-        for w in workers:
-            w.wait()
-    else:
-        print("Waiting %d min for model to %s" % (min, s_process))
-        for idx in range(round(min)):
-            time.sleep(60)
-            min_passed = idx + 1
-            print("%d min passed" % min_passed)
-    print("Stopping %s process" % s_process)
+    print("Waiting %d min for model to train" % (train_min))
+    for idx in range(round(train_min)):
+        time.sleep(60)
+        min_passed = idx + 1
+        print("%d min passed" % min_passed)
+
+    print("Stopping train process")
     if is_widows_os():
         stop_nt_processes(processes)
     else:
@@ -253,7 +226,7 @@ def run_model(s_process, min, num_workers, train_seed, costs, mode):
     time.sleep(5)
 
 
-def main(mode, costs, copy_weights):
+def main(costs, copy_weights):
     data = get_datasource()
     data_length = data.shape[0]
     min_seed_idx = start_seed_idx
@@ -264,40 +237,23 @@ def main(mode, costs, copy_weights):
         if train_seed < start_seed_idx:
             continue
 
-        if mode == Mode.TRAIN:
-            s_process = "train"
-        elif mode == Mode.CV:
-            s_process = "cv"
-        elif mode == Mode.LOG:
-            s_process = "log"
-        print("Starting %s at %d seed" % (s_process, train_seed))
-        if mode == Mode.TRAIN:
-            if copy_weights:
-                model_path = get_config().get_model_path(train_seed, costs, Mode.TRAIN)
-                if costs:
-                    prev_model_path = get_config().get_model_path(train_seed, False, Mode.TRAIN)
+        print("Starting train at %d seed" % (train_seed))
+        if copy_weights:
+            model_path = get_config().get_model_path(train_seed, costs)
+            if costs:
+                prev_model_path = get_config().get_model_path(train_seed, False)
+                copy_model(model_path, prev_model_path)
+            else:
+                if train_seed > 0:
+                    prev_model_path = get_config().get_model_path(train_seed - 1, False)
                     copy_model(model_path, prev_model_path)
-                else:
-                    if train_seed > 0:
-                        prev_model_path = get_config().get_model_path(train_seed - 1, False, Mode.TRAIN)
-                        copy_model(model_path, prev_model_path)
-            run_model("train", train_min, num_workers, train_seed, costs, mode)
-        # always copy weights during cv
-        if mode == Mode.CV:
-            model_path = get_config().get_model_path(train_seed, costs, Mode.TRAIN)
-            cv_model_path = get_config().get_model_path(train_seed, costs, Mode.CV)
-            copy_model(cv_model_path, model_path)
-            run_model("cv", train_min, num_workers, train_seed, costs, mode)
-        if mode == Mode.LOG:
-            run_model("log", log_min, 1, train_seed, costs, mode)
+        run_model(train_seed, costs)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('--mode', default="train", help="Network mode")
     parser.add_argument('--costs', action='store_true', help="Model include costs")
     parser.add_argument('--copy', action='store_true', help="Replace weights")
 
     args = parser.parse_args()
-    mode = parse_mode(args.mode)
-    main(mode, args.costs, args.copy)
+    main(args.costs, args.copy)
