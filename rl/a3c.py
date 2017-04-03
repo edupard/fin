@@ -368,9 +368,9 @@ should be computed.
                 global_step = self.local_network.global_step.eval()
 
                 train_file_path = os.path.join(folder_path,
-                                               'train_{}_{}.csv'.format(get_config().train_seed, global_step))
+                                               'train_{}.csv'.format(get_config().train_seed))
                 test_file_path = os.path.join(folder_path,
-                                              'test_{}_{}.csv'.format(get_config().train_seed, global_step))
+                                              'test_{}.csv'.format(get_config().train_seed))
 
                 train_data = np.vstack(rollout.train_rows)
                 test_data = np.vstack(rollout.test_rows)
