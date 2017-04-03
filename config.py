@@ -108,6 +108,7 @@ class Config(object):
     reward_scale_multiplier = 100.0
 
     render = False
+    files_to_preserve = 2
     # Episode parameters
     mode = Mode.TRAIN
     train_length = 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4

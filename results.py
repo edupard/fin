@@ -55,30 +55,41 @@ def create_axis(fig, shared_ax, id, y_fmt_str):
     return ax
 
 
-def visualize(data_set_name):
+def visualize(data_set_name, costs):
     folder_path = os.path.join('results', get_config().model)
-    files = fnmatch.filter(os.listdir(folder_path), '%s_*.csv'.format(data_set_name))
+    files = fnmatch.filter(os.listdir(folder_path), '{}_*.csv'.format(data_set_name))
 
     def extract_seed(file_name):
-        s_idx = file_name.split('_')[1]
-        return int(s_idx)
+        s_seed = file_name.split('_')[1]
+        s_seed = s_seed.split('.')[0]
+        return int(s_seed)
 
     def extract_global_step(file_name):
         s_global_step = file_name.split('_')[2]
         s_global_step = s_global_step.split('.')[0]
         return int(s_global_step)
 
+    # files = sorted(files, key=lambda x: extract_seed(x))
     files = sorted(files, key=lambda x: (extract_seed(x), -extract_global_step(x)))
     t_a = []
     p_a = []
     n_t_a = []
     n_p_a = []
+
     ccy_a = []
     ccy_c_a = []
     pct_a = []
     pct_c_a = []
     lr_a = []
     lr_c_a = []
+
+    ccy_costs_a = []
+    ccy_c_costs_a = []
+    pct_costs_a = []
+    pct_c_costs_a = []
+    lr_costs_a = []
+    lr_c_costs_a = []
+
     a_a = []
     v_a = []
     p_f_a = []
@@ -103,6 +114,7 @@ def visualize(data_set_name):
         n_t_a.append(results[:, col_idx].reshape((-1)))
         col_idx += 1
         n_p_a.append(results[:, col_idx].reshape((-1)))
+
         col_idx += 1
         ccy_a.append(results[:, col_idx].reshape((-1)))
         col_idx += 1
@@ -115,6 +127,20 @@ def visualize(data_set_name):
         lr_a.append(results[:, col_idx].reshape((-1)))
         col_idx += 1
         lr_c_a.append(results[:, col_idx].reshape((-1)))
+
+        col_idx += 1
+        ccy_costs_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        ccy_c_costs_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        pct_costs_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        pct_c_costs_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        lr_costs_a.append(results[:, col_idx].reshape((-1)))
+        col_idx += 1
+        lr_c_costs_a.append(results[:, col_idx].reshape((-1)))
+
         col_idx += 1
         a_a.append(results[:, col_idx].reshape((-1)))
         col_idx += 1
@@ -137,6 +163,22 @@ def visualize(data_set_name):
     pct_c = np.concatenate(pct_c_a)
     lr = np.concatenate(lr_a)
     lr_c = np.concatenate(lr_c_a)
+
+    ccy_costs = np.concatenate(ccy_costs_a)
+    ccy_c_costs = np.concatenate(ccy_c_costs_a)
+    pct_costs = np.concatenate(pct_costs_a)
+    pct_c_costs = np.concatenate(pct_c_costs_a)
+    lr_costs = np.concatenate(lr_costs_a)
+    lr_c_costs = np.concatenate(lr_c_costs_a)
+
+    if costs:
+        ccy = ccy_costs
+        ccy_c = ccy_c_costs
+        pct = pct_costs
+        pct_c = pct_c_costs
+        lr = lr_costs
+        lr_c = lr_c_costs
+
     a = np.concatenate(a_a)
     v = np.concatenate(v_a)
     p_f = np.concatenate(p_f_a)
@@ -339,11 +381,8 @@ def visualize(data_set_name):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('--train', action='store_true', help="draw train period")
-    parser.add_argument('--cv', action='store_true', help="draw cv period")
+    parser.add_argument('--costs', action='store_true', help="draw cv period")
     args = parser.parse_args()
-    if args.cv:
-        visualize('test')
-    if args.train:
-        visualize('train')
+    visualize('test', args.costs)
+    visualize('train', args.costs)
     plt.show(True)

@@ -115,8 +115,8 @@ once it has processed enough steps.
 class A3C(object):
     def __init__(self, env, task, summary_writer):
 
-        self.train_rows = []
-        self.test_rows = []
+        self.train_csv = []
+        self.test_csv = []
 
         """
 An implementation of the A3C algorithm that is reasonably well-tuned for the VNC environments.
@@ -258,6 +258,12 @@ should be computed.
                            info.pct_c,
                            info.lr,
                            info.lr_c,
+                           info.ccy_cost,
+                           info.ccy_c_cost,
+                           info.pct_cost,
+                           info.pct_c_cost,
+                           info.lr_cost,
+                           info.lr_c_cost,
                            a]
                     row.extend(value_)
                     row.extend(action_distribution.reshape((-1)))
@@ -368,12 +374,22 @@ should be computed.
                 global_step = self.local_network.global_step.eval()
 
                 train_file_path = os.path.join(folder_path,
-                                               'train_{}.csv'.format(get_config().train_seed))
+                                               'train_{}_{}.csv'.format(get_config().train_seed, global_step))
                 test_file_path = os.path.join(folder_path,
-                                              'test_{}.csv'.format(get_config().train_seed))
+                                              'test_{}_{}.csv'.format(get_config().train_seed, global_step))
+                self.train_csv.append(train_file_path)
+                self.test_csv.append(test_file_path)
 
                 train_data = np.vstack(rollout.train_rows)
                 test_data = np.vstack(rollout.test_rows)
 
+                if len(self.train_csv) == get_config().files_to_preserve:
+                    os.remove(self.train_csv.pop(0))
+                    os.remove(self.test_csv.pop(0))
+
+                if os.path.exists(train_file_path):
+                    os.remove(train_file_path)
+                if os.path.exists(test_file_path):
+                    os.remove(test_file_path)
                 np.savetxt(train_file_path, train_data, delimiter=',')
                 np.savetxt(test_file_path, test_data, delimiter=',')
