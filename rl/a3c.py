@@ -318,6 +318,10 @@ should be computed.
                     length = 0
                     rewards = 0
                     rewards_cost = 0
+                    test_length = 0
+                    test_rewards = 0
+                    test_rewards_costs = 0
+
                     pending_rollouts.clear()
                     break
                     # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
