@@ -40,12 +40,14 @@ class Mode(Enum):
     TRAIN = 0
     TEST = 1
 
+
 def parse_mode(s_mode):
     s_m = s_mode.lower()
     if s_m == "train":
         return Mode.TRAIN
     elif s_m == "test":
         return Mode.TEST
+
 
 class Config(object):
     # env factory config
@@ -101,7 +103,7 @@ class Config(object):
     reward_algo = RewardAlgo.PCT
     # slippage + commission
     costs_on = False
-    costs_adv = True
+    costs_adv = False
     costs = 0.03
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
@@ -111,13 +113,12 @@ class Config(object):
     files_to_preserve = 2
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_length = 12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
-    retrain_interval = 2100  # train_episode_length
+    retrain_interval = train_episode_length  # 2100  # train_episode_length
     train_seed = 0
 
     # Learning parameters
-    no_flat = True
     num_global_steps = 20e8
     algo_modification = True
     _lambda = 1.0
@@ -156,11 +157,13 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
     # rnn_1d_size = 64
     # leha model - 1h 6000 bars
-    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
-    rnn_1d_size = 13
+    # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
+    # rnn_1d_size = 13
     # more complicated model
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (4, 4, 32)]
     # rnn_1d_size = 32
+    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 8)]
+    rnn_1d_size = 8
 
     max_grad_norm = 40.0
     propogate_position_to_rnn = False
