@@ -180,7 +180,7 @@ class Environment:
         self._data_queue = queue.Queue()
         self._initialized = False
 
-        self._action_space = spaces.Discrete(3)
+        self._action_space = spaces.Discrete(2) if get_config().no_flat else spaces.Discrete(3)
         if get_config().state_mode == StateMode.TWO_D:
             self._observation_space = Box(0.0, 1.0, [get_config().window_px_width, get_config().window_px_height, 1])
         elif get_config().state_mode == StateMode.ONE_D:

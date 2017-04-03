@@ -12,9 +12,16 @@ def get_action_code(a: Action)->int:
         Action.SELL: 2
     }[a]
 
+# def convert_to_action(a: int) -> Action:
+#     return {
+#         0: Action.FLAT,
+#         1: Action.BUY,
+#         2: Action.SELL
+#     }[a]
+
 def convert_to_action(a: int) -> Action:
     return {
-        0: Action.FLAT,
-        1: Action.BUY,
-        2: Action.SELL
+        0: Action.BUY,
+        1: Action.SELL
     }[a]
+
