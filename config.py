@@ -113,7 +113,7 @@ class Config(object):
     files_to_preserve = 2
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 6000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_length = 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
     retrain_interval = train_episode_length #1000 #train_episode_length  # 2100  # train_episode_length
     train_seed = 0
