@@ -157,13 +157,13 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
     # rnn_1d_size = 64
     # leha model - 1h 6000 bars
-    # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
-    # rnn_1d_size = 13
+    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
+    rnn_1d_size = 13
     # more complicated model
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (4, 4, 32)]
     # rnn_1d_size = 32
-    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 8)]
-    rnn_1d_size = 8
+    # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 8)]
+    # rnn_1d_size = 8
 
     max_grad_norm = 40.0
     propogate_position_to_rnn = False
