@@ -327,8 +327,9 @@ should be computed.
                     test_length = 0
                     test_rewards = 0
                     test_rewards_costs = 0
-                    test_rows.clear()
-                    train_rows.clear()
+                    if get_config().is_test_mode():
+                        test_rows.clear()
+                        train_rows.clear()
 
                     pending_rollouts.clear()
                     break
