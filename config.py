@@ -96,7 +96,7 @@ class Config(object):
     rolling_px_factor = 0.2
     rolling_px_range_factor = 0.9
     # Set to true if you want to draw line during training
-    draw_training_line = True
+    draw_training_line = False
 
     # Reward algo
     reward_type = RewardType.URPL
@@ -113,9 +113,9 @@ class Config(object):
     files_to_preserve = 2
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_length = 6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
-    retrain_interval = train_episode_length  # 2100  # train_episode_length
+    retrain_interval = 1000 #train_episode_length  # 2100  # train_episode_length
     train_seed = 0
 
     # Learning parameters
@@ -125,24 +125,24 @@ class Config(object):
     gamma = 0.95
     buffer_length = 100
     fwd_buffer_length = buffer_length if algo_modification else 0
-    keep_prob = 0.5
+    keep_prob = 1.0 # 0.5
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    state_mode = StateMode.ONE_D
+    state_mode = StateMode.TWO_D
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 8), (3, 2, 4), (3, 2, 4), (3, 2, 2)]
     # conv_layers_2d = [(3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 2, 8), (3, 3, 8)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 3, 32)]
-    # rnn_2d_size = 32
+    # rnn_2d_size = 64
 
     # conv_layers_2d = [(3, 8, 2, 4, 32), (3, 8, 2, 4, 16), (3, 6, 2, 3, 8), (3, 4, 2, 4, 4)]
     # rnn_2d_size = 32
     conv_layers_2d = [(3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32),
                       (3, 3, 2, 2, 32), (3, 3, 3, 3, 32)]
-    rnn_2d_size = 32
+    rnn_2d_size = 64
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
