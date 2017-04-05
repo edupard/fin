@@ -64,7 +64,7 @@ class Config(object):
     # bar_min = 24 * 60
     # Brent
     ticker = 'QO'
-    bar_min = 4 * 60 #5  # 60  # 15
+    bar_min = 4 * 60  # 5  # 60  # 15
     # Experiments
     # ticker = 'EXP'
     # bar_min = 30
@@ -113,9 +113,9 @@ class Config(object):
     files_to_preserve = 2
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 3000 #12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_length = 3000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
-    retrain_interval = train_episode_length #1000 #train_episode_length  # 2100  # train_episode_length
+    retrain_interval = train_episode_length  # 1000 #train_episode_length  # 2100  # train_episode_length
     train_seed = 0
 
     # Learning parameters
@@ -123,9 +123,9 @@ class Config(object):
     algo_modification = True
     _lambda = 1.0
     gamma = 0.95
-    buffer_length = 20
+    buffer_length = 100  # 20
     fwd_buffer_length = buffer_length if algo_modification else 0
-    keep_prob = 1.0 # 0.5
+    keep_prob = 1.0  # 0.5
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
@@ -151,8 +151,6 @@ class Config(object):
     conv_layers_2d = [(3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4),
                       (3, 3, 2, 2, 4)]
     rnn_2d_size = 36
-
-
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
