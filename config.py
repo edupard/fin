@@ -123,7 +123,7 @@ class Config(object):
     algo_modification = True
     _lambda = 1.0
     gamma = 0.95
-    buffer_length = 100
+    buffer_length = 20
     fwd_buffer_length = buffer_length if algo_modification else 0
     keep_prob = 1.0 # 0.5
 
@@ -144,9 +144,15 @@ class Config(object):
     #                   (3, 3, 2, 2, 32), (3, 3, 3, 3, 32)]
     # rnn_2d_size = 64
 
-    conv_layers_2d = [(3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32),
-                      (3, 3, 2, 2, 32)]
-    rnn_2d_size = 256
+    # conv_layers_2d = [(3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32),
+    #                   (3, 3, 2, 2, 32)]
+    # rnn_2d_size = 256
+
+    conv_layers_2d = [(3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4),
+                      (3, 3, 2, 2, 4)]
+    rnn_2d_size = 36
+
+
 
     # conv_layers_1d = [(3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5), (3, 2, 5)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
