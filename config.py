@@ -125,7 +125,7 @@ class Config(object):
     gamma = 0.95
     buffer_length = 20 # 100
     fwd_buffer_length = buffer_length if algo_modification else 0
-    keep_prob = 1.0  # 0.5
+    keep_prob = 0.5
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
