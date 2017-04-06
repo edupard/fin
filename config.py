@@ -178,10 +178,11 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 8)]
     # rnn_1d_size = 8
     # more simplier model
-    conv_layers_1d = [(3, 2, 64), (3, 2, 32), (3, 2, 16), (3, 2, 8), (3, 2, 4), (4, 4, 2)]
+    # conv_layers_1d = [(3, 2, 64), (3, 2, 32), (3, 2, 16), (3, 2, 8), (3, 2, 4), (4, 4, 2)]
+    # rnn_1d_size = 2
+    # even more simple model
+    conv_layers_1d = [(3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2), (3, 2, 1)]
     rnn_1d_size = 2
-
-
 
     max_grad_norm = 40.0
     propogate_position_to_rnn = False
