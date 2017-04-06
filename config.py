@@ -123,9 +123,9 @@ class Config(object):
     algo_modification = True
     _lambda = 1.0
     gamma = 0.95
-    buffer_length = 20 # 100
+    buffer_length = 100
     fwd_buffer_length = buffer_length if algo_modification else 0
-    keep_prob = 1.0 #0.5 # we need to fit - the question more about properties of strategy on the test set
+    keep_prob = 1.0  # 0.5 # we need to fit - the question more about properties of strategy on the test set
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
@@ -170,16 +170,16 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
     # rnn_1d_size = 64
     # leha model - 1h 6000 bars
-    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
-    rnn_1d_size = 13
+    # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
+    # rnn_1d_size = 13
     # more complicated model
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (4, 4, 32)]
     # rnn_1d_size = 32
     # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 8)]
     # rnn_1d_size = 8
     # more simplier model
-    # conv_layers_1d = [(3, 2, 64), (3, 2, 32), (3, 2, 16), (3, 2, 8), (3, 2, 4), (4, 4, 2)]
-    # rnn_1d_size = 2
+    conv_layers_1d = [(3, 2, 64), (3, 2, 32), (3, 2, 16), (3, 2, 8), (3, 2, 4), (4, 4, 2)]
+    rnn_1d_size = 2
 
 
 
