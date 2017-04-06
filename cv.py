@@ -12,10 +12,10 @@ from enum import Enum
 from config import get_config, Mode, parse_mode
 from data_source.data_source import get_datasource
 
-train_min = 1200
+train_min = 150
 
 start_seed_idx = 0
-stop_seed_idx = 0
+stop_seed_idx = 6
 
 
 def is_widows_os():
