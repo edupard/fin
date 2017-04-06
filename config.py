@@ -183,8 +183,11 @@ class Config(object):
     # even more simple model
     # conv_layers_1d = [(3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2), (3, 2, 1)]
     # rnn_1d_size = 2
-    # leha model - 1h 6000 bars
-    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 8)]
+    # a little bit more complicated model than leha's model
+    # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 8)]
+    # rnn_1d_size = 13
+    # simplier than leha's model
+    conv_layers_1d = [(3, 2, 4), (3, 2, 2), (3, 2, 1)]
     rnn_1d_size = 13
 
     max_grad_norm = 40.0
