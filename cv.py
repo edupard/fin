@@ -24,7 +24,7 @@ def is_widows_os():
     return False
 
 
-num_workers = 64
+num_workers = 32
 if is_widows_os():
     num_workers = None
 if num_workers is None:
