@@ -283,11 +283,12 @@ should be computed.
                     last_features = self.local_network.get_initial_features()
 
                     def print_deals_stat(s_group, info):
+                        l_s_d = info.long + info.short if info.long + info.short != 0 else 1
                         print('{} L: {} D: {} L PCT: {:.2f} L T PCT: {:.2f} S T PCT: {:.2f} F T PCT: {:.2f}'.format(
                             s_group,
                             info.length,
                             2 * (info.long + info.short),
-                            float(info.long / (info.long + info.short) * 100.0),
+                            float(info.long / l_s_d * 100.0),
                             float(info.long_length / info.length * 100.0),
                             float(info.short_length / info.length * 100.0),
                             (info.length - info.long_length - info.short_length) / info.length * 100.0))
@@ -314,10 +315,11 @@ should be computed.
                         summary.value.add(tag='{}/rwc'.format(s_group), simple_value=float(info.rwc))
                         summary.value.add(tag='{}/ds size'.format(s_group), simple_value=float(info.length))
                         if get_config().environment == EnvironmentType.FIN:
+                            l_s_d = info.long + info.short if info.long + info.short != 0 else 1
                             summary.value.add(tag='{}/deals'.format(s_group),
                                               simple_value=float(2 * (info.long + info.short)))
                             summary.value.add(tag='{}/pct pos long'.format(s_group),
-                                              simple_value=float(info.long / (info.long + info.short) * 100.0))
+                                              simple_value=float(info.long / l_s_d * 100.0))
                             summary.value.add(tag='{}/pct time long'.format(s_group),
                                               simple_value=float(info.long_length / info.length * 100.0))
                             summary.value.add(tag='{}/pct time short'.format(s_group),
