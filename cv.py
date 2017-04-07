@@ -230,9 +230,12 @@ def main(costs, copy_weights):
     data = get_datasource()
     data_length = data.shape[0]
     min_seed_idx = start_seed_idx
-    max_seed = stop_seed_idx + 1
+
     if stop_seed_idx is None:
         max_seed = (data_length - get_config().ww) // get_config().retrain_interval
+    else:
+        max_seed = stop_seed_idx + 1
+
     for train_seed in range(min_seed_idx, max_seed):
         if train_seed < start_seed_idx:
             continue
