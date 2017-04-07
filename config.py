@@ -110,7 +110,7 @@ class Config(object):
     reward_scale_multiplier = 100.0
 
     render = False
-    files_to_preserve = 2
+    files_to_preserve = 1
     # Episode parameters
     mode = Mode.TRAIN
     train_length = 6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
@@ -144,9 +144,9 @@ class Config(object):
     #                   (3, 3, 2, 2, 32), (3, 3, 3, 3, 32)]
     # rnn_2d_size = 64
     # superfit
-    # conv_layers_2d = [(3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32),
-    #                   (3, 3, 2, 2, 32)]
-    # rnn_2d_size = 256
+    conv_layers_2d = [(3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32), (3, 3, 2, 2, 32),
+                      (3, 3, 2, 2, 32)]
+    rnn_2d_size = 256
     # less than superfit
     # conv_layers_2d = [(3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4), (3, 3, 2, 2, 4),
     #                   (3, 3, 2, 2, 4)]

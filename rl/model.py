@@ -45,6 +45,10 @@ def linear(x, size, name, initializer=None, bias_init=0):
     b = tf.get_variable(name + "/b", [size], initializer=tf.constant_initializer(bias_init))
     return tf.matmul(x, w) + b
 
+def max_sample(logits, d):
+    logits_normalized = logits - tf.reduce_max(logits, [1], keep_dims=True)
+    value = tf.argmax(logits_normalized, 1)
+    return tf.one_hot(value, d)
 
 def categorical_sample(logits, d):
     value = tf.squeeze(tf.multinomial(logits - tf.reduce_max(logits, [1], keep_dims=True), 1), [1])
@@ -109,7 +113,10 @@ class LSTMPolicy(object):
         self.logits = linear(x, ac_space, "action", normalized_columns_initializer(0.01))
         self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        self.sample = categorical_sample(self.logits, ac_space)[0, :]
+        if get_config().is_test_mode():
+            self.sample = max_sample(self.logits, ac_space)[0, :]
+        else:
+            self.sample = categorical_sample(self.logits, ac_space)[0, :]
         self.sample_distribution = tf.nn.softmax(self.logits)
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
 

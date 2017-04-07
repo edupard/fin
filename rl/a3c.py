@@ -5,6 +5,7 @@ from rl.model import LSTMPolicy
 import scipy.signal
 import csv
 import os
+import copy
 
 from config import StateMode, EnvironmentType, get_config as get_config
 from env.env import State
@@ -200,15 +201,11 @@ should be computed.
         last_state = self.env.reset()
         pos = 0
         last_features = self.local_network.get_initial_features()
-        length = 0
-        rewards = 0
-        rewards_cost = 0
-        test_rewards = 0
-        test_rewards_costs = 0
-        test_length = 0
+
         if get_config().is_test_mode():
             test_rows = []
             train_rows = []
+            train_info = None
 
         pending_rollouts = []
         curr_progress = 0
@@ -232,21 +229,15 @@ should be computed.
                 for rollout in pending_rollouts:
                     rollout.add(last_state, pos, action, r, r_c, value_, terminal, last_features)
 
-                length += 1
-                rewards += r
-                rewards_cost += r_c
-
-                progress = length // (total_length // 10)
+                progress = info.length // (total_length // 10)
                 if progress != curr_progress:
                     print('.', sep=' ', end='', flush=True)
                     curr_progress = progress
 
                 if get_config().is_test_mode():
-                    test_step = length > get_config().train_length
-                    if test_step:
-                        test_rewards += r
-                        test_rewards_costs += r_c
-                        test_length += 1
+                    test_step = info.length >= get_config().train_length
+                    if test_step and train_info is None:
+                        train_info = copy.deepcopy(info)
 
                     row = [info.time,
                            info.price,
@@ -290,48 +281,63 @@ should be computed.
                     print('')
                     last_state = self.env.reset()
                     last_features = self.local_network.get_initial_features()
+
+                    def print_deals_stat(s_group, info):
+                        print('{} L: {} D: {} L PCT: {:.2f} L T PCT: {:.2f} S T PCT: {:.2f} F T PCT: {:.2f}'.format(
+                            s_group,
+                            info.length,
+                            2 * (info.long + info.short),
+                            float(info.long / (info.long + info.short) * 100.0),
+                            float(info.long_length / info.length * 100.0),
+                            float(info.short_length / info.length * 100.0),
+                            (info.length - info.long_length - info.short_length) / info.length * 100.0))
+
                     if get_config().is_test_mode():
-                        print("R: %.3f R C: %.3f L: %d T R: %.3f T R C: %.3f T L: %d" % (
-                            rewards - test_rewards, rewards_cost - test_rewards_costs, length - test_length,
-                            test_rewards, test_rewards_costs, test_length))
+                        test_info = info.subtract(train_info)
+
+                        print("R: %.3f R C: %.3f L: %d T R: %.3f T R C: %.3f T L: %d" % (train_info.r,
+                                                                                         train_info.rwc,
+                                                                                         train_info.length,
+                                                                                         test_info.r,
+                                                                                         test_info.rwc,
+                                                                                         test_info.length))
+                        print_deals_stat('test_train', train_info)
+                        print_deals_stat('test', test_info)
                     else:
                         print("R: %.3f RWC: %.3f L: %d" % (
-                            rewards, rewards_cost, length))
-
-                    if get_config().environment == EnvironmentType.FIN:
-                        print('Positions: {} long deals: {} length: {} short deals: {} length: {}'.format(
-                            info.long + info.short,
-                            info.long,
-                            info.long_length,
-                            info.short,
-                            info.short_length))
+                            info.r, info.rwc, info.length))
+                        print_deals_stat('train', info)
                     summary = tf.Summary()
-                    if get_config().is_test_mode():
-                        summary.value.add(tag='progress/test reward', simple_value=float(test_rewards))
-                        summary.value.add(tag='progress/test reward with cost', simple_value=float(test_rewards_costs))
-                    else:
-                        summary.value.add(tag='progress/reward', simple_value=float(rewards))
-                        summary.value.add(tag='progress/reward with cost', simple_value=float(rewards_cost))
-                        summary.value.add(tag='progress/round length', simple_value=float(length))
+
+                    def fill_summary(s_group, info):
+                        summary.value.add(tag='{}/r'.format(s_group), simple_value=float(info.r))
+                        summary.value.add(tag='{}/rwc'.format(s_group), simple_value=float(info.rwc))
+                        summary.value.add(tag='{}/ds size'.format(s_group), simple_value=float(info.length))
                         if get_config().environment == EnvironmentType.FIN:
-                            summary.value.add(tag='progress/long deals', simple_value=float(info.long))
-                            summary.value.add(tag='progress/long length', simple_value=float(info.long_length))
-                            summary.value.add(tag='progress/short deals', simple_value=float(info.short))
-                            summary.value.add(tag='progress/short length', simple_value=float(info.short_length))
-                            summary.value.add(tag='progress/Positions', simple_value=float(info.long + info.short))
+                            summary.value.add(tag='{}/deals'.format(s_group),
+                                              simple_value=float(2 * (info.long + info.short)))
+                            summary.value.add(tag='{}/pct pos long'.format(s_group),
+                                              simple_value=float(info.long / (info.long + info.short) * 100.0))
+                            summary.value.add(tag='{}/pct time long'.format(s_group),
+                                              simple_value=float(info.long_length / info.length * 100.0))
+                            summary.value.add(tag='{}/pct time short'.format(s_group),
+                                              simple_value=float(info.short_length / info.length * 100.0))
+                            summary.value.add(tag='{}/pct time flat'.format(s_group),
+                                              simple_value=float((
+                                                                     info.length - info.long_length - info.short_length) / info.length * 100.0))
+
+                    if get_config().is_test_mode():
+                        fill_summary('test', test_info)
+                        fill_summary('test_train', train_info)
+                    else:
+                        fill_summary('train', info)
                     self.summary_writer.add_summary(summary, self.local_network.global_step.eval())
                     self.summary_writer.flush()
-                    length = 0
-                    rewards = 0
-                    rewards_cost = 0
-                    test_length = 0
-                    test_rewards = 0
-                    test_rewards_costs = 0
                     if get_config().is_test_mode():
                         test_rows.clear()
                         train_rows.clear()
-
                     pending_rollouts.clear()
+                    train_info = None
                     break
                     # once we have enough experience, yield it, and have the ThreadRunner place it on a queue
 
@@ -386,7 +392,7 @@ should be computed.
                 train_data = np.vstack(rollout.train_rows)
                 test_data = np.vstack(rollout.test_rows)
 
-                if len(self.train_csv) == get_config().files_to_preserve:
+                if len(self.train_csv) > get_config().files_to_preserve:
                     os.remove(self.train_csv.pop(0))
                     os.remove(self.test_csv.pop(0))
 

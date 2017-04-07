@@ -9,6 +9,7 @@ from gym import spaces
 from gym.spaces.box import Box
 import cv2
 from PIL import Image
+import copy
 
 from data_source.data_source import get_datasource
 from config import get_config, RenderingBackend, RewardType, RewardAlgo, StateMode
@@ -101,6 +102,23 @@ class Info:
         self.lr_c_cost = 0.0
 
         self.state = State.FLAT
+
+        self.length = 0
+        self.r = 0.0
+        self.rwc = 0.0
+
+    def subtract(self, info):
+        ret = copy.deepcopy(self)
+
+        ret.long = ret.long - info.long
+        ret.short = ret.short - info.short
+        ret.long_length = ret.long_length - info.long_length
+        ret.short_length = ret.short_length - info.short_length
+        ret.length = ret.length - info.length
+        ret.r = ret.r - info.r
+        ret.rwc = ret.rwc - info.rwc
+
+        return ret
 
 
 class DrawData:
@@ -466,6 +484,10 @@ class Environment:
         self._info.lr_c = lr_c * 100.0
         self._info.lr_c_cost = lr_c_cost * 100.0
         self._info.state = self._state
+
+        self._info.length += 1
+        self._info.r += r[0]
+        self._info.rwc += r[1]
 
         return self._get_state(), r, d, self._info
 

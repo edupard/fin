@@ -11,7 +11,7 @@ import os
 import fnmatch
 import argparse
 
-draw_deals = True
+draw_deals = False
 # PL
 draw_ccy = True
 draw_ccy_c = True
@@ -96,6 +96,8 @@ def visualize(data_set_name, costs):
     p_l_a = []
     p_s_a = []
     curr_seed = -1
+    curr_time = 0
+
     for file_name in files:
         seed = extract_seed(file_name)
         if seed == curr_seed:
@@ -106,51 +108,61 @@ def visualize(data_set_name, costs):
         results = np.genfromtxt(file_path, delimiter=',', dtype=np.float64)
         if results.shape[0] == 0:
             continue
+
         col_idx = 0
-        t_a.append(results[:, col_idx].reshape((-1)))
+        # cacluate index to get slice from
+        slice_start_idx = 0
+        for t in results[:, col_idx].reshape((-1)):
+            if t <= curr_time:
+                slice_start_idx += 1
+            else:
+                curr_time = results[-1, col_idx]
+                break
+
+        t_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        p_a.append(results[:, col_idx].reshape((-1)))
+        p_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        n_t_a.append(results[:, col_idx].reshape((-1)))
+        n_t_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        n_p_a.append(results[:, col_idx].reshape((-1)))
+        n_p_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
 
         col_idx += 1
-        ccy_a.append(results[:, col_idx].reshape((-1)))
+        ccy_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        ccy_c_a.append(results[:, col_idx].reshape((-1)))
+        ccy_c_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        pct_a.append(results[:, col_idx].reshape((-1)))
+        pct_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        pct_c_a.append(results[:, col_idx].reshape((-1)))
+        pct_c_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        lr_a.append(results[:, col_idx].reshape((-1)))
+        lr_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        lr_c_a.append(results[:, col_idx].reshape((-1)))
+        lr_c_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
 
         col_idx += 1
-        ccy_costs_a.append(results[:, col_idx].reshape((-1)))
+        ccy_costs_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        ccy_c_costs_a.append(results[:, col_idx].reshape((-1)))
+        ccy_c_costs_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        pct_costs_a.append(results[:, col_idx].reshape((-1)))
+        pct_costs_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        pct_c_costs_a.append(results[:, col_idx].reshape((-1)))
+        pct_c_costs_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        lr_costs_a.append(results[:, col_idx].reshape((-1)))
+        lr_costs_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        lr_c_costs_a.append(results[:, col_idx].reshape((-1)))
+        lr_c_costs_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
 
         col_idx += 1
-        a_a.append(results[:, col_idx].reshape((-1)))
+        a_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        v_a.append(results[:, col_idx].reshape((-1)))
+        v_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        p_f_a.append(results[:, col_idx].reshape((-1)))
+        p_f_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        p_l_a.append(results[:, col_idx].reshape((-1)))
+        p_l_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
-        p_s_a.append(results[:, col_idx].reshape((-1)))
+        p_s_a.append(results[slice_start_idx:, col_idx].reshape((-1)))
         col_idx += 1
 
     t = np.concatenate(t_a)
