@@ -12,7 +12,7 @@ from enum import Enum
 from config import get_config, Mode, parse_mode
 from data_source.data_source import get_datasource
 
-train_min = 60 * 6
+train_min = 60
 
 start_seed_idx = 0
 stop_seed_idx = 12
