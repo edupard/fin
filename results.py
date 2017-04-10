@@ -298,8 +298,14 @@ def visualize(data_set_name, costs):
         iteration += 1
 
     deals = 0
+    long_deals = 0
+    short_deals = 0
     for (ent_t, ent_px, exit_t, exit_px, pl_positive, state) in generate_deals():
         deals += 1
+        if state == State.LONG:
+            long_deals += 1
+        else:
+            short_deals += 1
 
         # Plot deals
         if draw_deals:
@@ -319,7 +325,8 @@ def visualize(data_set_name, costs):
         dd_a = r - prev_max
         return np.min(dd_a)
 
-    print('Deals count %d' % deals)
+    print('Deals count %d' % (deals * 2))
+    print('Long pct: %.3f' % (long_deals / (1 if deals == 0 else deals)))
 
     def plot_reward(caption, r, subplot_idx):
         ax = create_axis(fig, p_ax, subplot_idx, '%.3f')

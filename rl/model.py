@@ -45,10 +45,12 @@ def linear(x, size, name, initializer=None, bias_init=0):
     b = tf.get_variable(name + "/b", [size], initializer=tf.constant_initializer(bias_init))
     return tf.matmul(x, w) + b
 
+
 def max_sample(logits, d):
     logits_normalized = logits - tf.reduce_max(logits, [1], keep_dims=True)
     value = tf.argmax(logits_normalized, 1)
     return tf.one_hot(value, d)
+
 
 def categorical_sample(logits, d):
     value = tf.squeeze(tf.multinomial(logits - tf.reduce_max(logits, [1], keep_dims=True), 1), [1])
@@ -71,9 +73,9 @@ class LSTMPolicy(object):
                     i += 1
             elif get_config().state_mode == StateMode.ONE_D:
                 i = 0
-                for k,s,f in get_config().conv_layers_1d:
+                for k, s, f in get_config().conv_layers_1d:
                     x = tf.nn.elu(conv2d(x, f, "l{}".format(i + 1), [k, 1], [s, 1]))
-                    i+=1
+                    i += 1
         x = flatten(x)
         self.pos = tf.placeholder(tf.float32, [None, 1])
         if get_config().propogate_position_to_rnn:
@@ -113,10 +115,11 @@ class LSTMPolicy(object):
         self.logits = linear(x, ac_space, "action", normalized_columns_initializer(0.01))
         self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        if get_config().is_test_mode():
-            self.sample = max_sample(self.logits, ac_space)[0, :]
-        else:
-            self.sample = categorical_sample(self.logits, ac_space)[0, :]
+        # if get_config().is_test_mode():
+        #     self.sample = max_sample(self.logits, ac_space)[0, :]
+        # else:
+        #     self.sample = categorical_sample(self.logits, ac_space)[0, :]
+        self.sample = categorical_sample(self.logits, ac_space)[0, :]
         self.sample_distribution = tf.nn.softmax(self.logits)
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
 
@@ -126,8 +129,10 @@ class LSTMPolicy(object):
     def act(self, ob, pos, c, h):
         sess = tf.get_default_session()
         return sess.run([self.sample, self.sample_distribution, self.vf] + self.state_out,
-                        {self.x: [ob], self.pos: [np.array([pos]).reshape((1))], self.state_in[0]: c, self.state_in[1]: h})
+                        {self.x: [ob], self.pos: [np.array([pos]).reshape((1))], self.state_in[0]: c,
+                         self.state_in[1]: h})
 
     def value(self, ob, pos, c, h):
         sess = tf.get_default_session()
-        return sess.run(self.vf, {self.x: [ob], self.pos: [np.array([pos])], self.state_in[0]: c, self.state_in[1]: h})[0]
+        return sess.run(self.vf, {self.x: [ob], self.pos: [np.array([pos])], self.state_in[0]: c, self.state_in[1]: h})[
+            0]
