@@ -34,6 +34,7 @@ class RewardAlgo(Enum):
 class StateMode(Enum):
     ONE_D = 0
     TWO_D = 1
+    RETURNS = 2
 
 
 class Mode(Enum):
@@ -64,7 +65,7 @@ class Config(object):
     # bar_min = 24 * 60
     # Brent
     ticker = 'QO'
-    bar_min = 60# 1 # 15  # 4 * 60  # 5  # 60  # 15
+    bar_min = 15  # 60# 1 # 15  # 4 * 60  # 5  # 60  # 15
     # Experiments
     # ticker = 'EXP'
     # bar_min = 30
@@ -113,9 +114,9 @@ class Config(object):
     files_to_preserve = 1
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 6000 # 200 * 24 * 60 # 6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_length = 6000  # 200 * 24 * 60 # 6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
-    retrain_interval = 2100 # train_episode_length #train_episode_length // 6 #train_episode_length # train_episode_length // 6  # 1000 #train_episode_length  # 2100  # train_episode_length
+    retrain_interval = train_episode_length // 6  # 2100 # train_episode_length #train_episode_length // 6 #train_episode_length # train_episode_length // 6  # 1000 #train_episode_length  # 2100  # train_episode_length
     train_seed = 0
 
     # Learning parameters
@@ -129,7 +130,7 @@ class Config(object):
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    state_mode = StateMode.ONE_D
+    state_mode = StateMode.RETURNS
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 8), (3, 2, 4), (3, 2, 4), (3, 2, 2)]
@@ -166,8 +167,8 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     # fit perfectly
-    # conv_layers_1d = [(3, 2, 200), (3, 2, 150), (3, 2, 150), (3, 2, 100), (3, 2, 100), (3, 2, 50)]
-    # rnn_1d_size = 64  # 4  # 255
+    conv_layers_1d = [(3, 2, 200), (3, 2, 150), (3, 2, 150), (3, 2, 100), (3, 2, 100), (3, 2, 50)]
+    rnn_1d_size = 64  # 4  # 255
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32)]
     # rnn_1d_size = 4
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4)]
@@ -175,8 +176,8 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
     # rnn_1d_size = 64
     # leha model - 1h 6000 bars
-    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
-    rnn_1d_size = 13
+    # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
+    # rnn_1d_size = 13
     # more complicated model
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (4, 4, 32)]
     # rnn_1d_size = 32

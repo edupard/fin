@@ -71,7 +71,7 @@ class LSTMPolicy(object):
                 for k_w, k_h, s_w, s_h, f in get_config().conv_layers_2d:
                     x = tf.nn.elu(conv2d(x, f, "l{}".format(i + 1), [k_w, k_h], [s_w, s_h]))
                     i += 1
-            elif get_config().state_mode == StateMode.ONE_D:
+            elif get_config().state_mode == StateMode.ONE_D or get_config().state_mode == StateMode.RETURNS:
                 i = 0
                 for k, s, f in get_config().conv_layers_1d:
                     x = tf.nn.elu(conv2d(x, f, "l{}".format(i + 1), [k, 1], [s, 1]))
@@ -88,7 +88,7 @@ class LSTMPolicy(object):
         if get_config().environment == EnvironmentType.FIN:
             if get_config().state_mode == StateMode.TWO_D:
                 size = get_config().rnn_2d_size
-            if get_config().state_mode == StateMode.ONE_D:
+            if get_config().state_mode == StateMode.ONE_D or get_config().state_mode == StateMode.RETURNS:
                 size = get_config().rnn_1d_size
 
         lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
@@ -115,11 +115,11 @@ class LSTMPolicy(object):
         self.logits = linear(x, ac_space, "action", normalized_columns_initializer(0.01))
         self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        # if get_config().is_test_mode():
-        #     self.sample = max_sample(self.logits, ac_space)[0, :]
-        # else:
-        #     self.sample = categorical_sample(self.logits, ac_space)[0, :]
-        self.sample = categorical_sample(self.logits, ac_space)[0, :]
+        if get_config().is_test_mode():
+            self.sample = max_sample(self.logits, ac_space)[0, :]
+        else:
+            self.sample = categorical_sample(self.logits, ac_space)[0, :]
+        # self.sample = categorical_sample(self.logits, ac_space)[0, :]
         self.sample_distribution = tf.nn.softmax(self.logits)
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
 
