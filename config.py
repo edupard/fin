@@ -114,7 +114,7 @@ class Config(object):
     files_to_preserve = 1
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 12000  # 200 * 24 * 60 # 6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_length = 6000  # 200 * 24 * 60 # 6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
     retrain_interval = train_episode_length #train_episode_length // 6  # 2100 # train_episode_length #train_episode_length // 6 #train_episode_length # train_episode_length // 6  # 1000 #train_episode_length  # 2100  # train_episode_length
     train_seed = 0
@@ -124,7 +124,7 @@ class Config(object):
     algo_modification = True
     _lambda = 1.0
     gamma = 0.95
-    buffer_length = 100
+    buffer_length = 20
     fwd_buffer_length = buffer_length if algo_modification else 0
     keep_prob = 1.0  # 0.5 # we need to fit - the question more about properties of strategy on the test set
 
