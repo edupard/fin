@@ -278,10 +278,10 @@ class Environment:
                 px_prev = self._data[data_idx - 1][1]
                 ret = (px - px_prev) / px_prev
                 self.ret_state[get_config().ww - i - 1][0][0] = ret * 100.0
-            cum_ret = 0.0
-            for i in range(0, get_config().ww):
-                cum_ret += self.ret_state[i][0][0]
-                self.ret_state[i][0][0] = cum_ret
+            # cum_ret = 0.0
+            # for i in range(0, get_config().ww):
+            #     cum_ret += self.ret_state[i][0][0]
+            #     self.ret_state[i][0][0] = cum_ret
 
         if get_config().state_mode == StateMode.TWO_D or get_config().render:
             quads = np.zeros((get_config().ww + 1, 4), dtype=np.float)
