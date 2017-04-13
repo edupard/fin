@@ -124,7 +124,7 @@ class Config(object):
     algo_modification = True
     _lambda = 1.0
     gamma = 0.95
-    buffer_length = 20
+    buffer_length = 100
     fwd_buffer_length = buffer_length if algo_modification else 0
     keep_prob = 1.0  # 0.5 # we need to fit - the question more about properties of strategy on the test set
 
