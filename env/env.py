@@ -204,8 +204,6 @@ class Environment:
         elif get_config().state_mode == StateMode.ONE_D:
             # Lower and upper bound is incorrect but it doesnt matter
             self._observation_space = Box(0.0, 1.0, [get_config().ww + 1, 1, 1])
-        elif get_config().state_mode == StateMode.RETURNS:
-            self._observation_space = Box(0.0, 1.0, [get_config().ww, 1, 1])
 
         self._info = Info()
 
@@ -270,19 +268,6 @@ class Environment:
                 px = self._data[data_idx][1]
                 y = calc_scaled_y(px)
                 self.one_d_state[get_config().ww - i][0][0] = y
-        if get_config().state_mode == StateMode.RETURNS:
-            self.ret_state = np.zeros((get_config().ww, 1, 1), dtype=np.float)
-            for i in range(0, get_config().ww):
-                data_idx = last_data_idx - i
-                px = self._data[data_idx][1]
-                px_prev = self._data[data_idx - 1][1]
-                ret = (px - px_prev) / px_prev
-                self.ret_state[get_config().ww - i - 1][0][0] = ret * 100.0
-            # cum_ret = 0.0
-            # for i in range(0, get_config().ww):
-            #     cum_ret += self.ret_state[i][0][0]
-            #     self.ret_state[i][0][0] = cum_ret
-
         if get_config().state_mode == StateMode.TWO_D or get_config().render:
             quads = np.zeros((get_config().ww + 1, 4), dtype=np.float)
             # First point
@@ -362,8 +347,6 @@ class Environment:
                 return _process_frame(arr)
         if get_config().state_mode == StateMode.ONE_D:
             return self.one_d_state
-        if get_config().state_mode == StateMode.RETURNS:
-            return self.ret_state
 
     def _fill_info(self, data_idx, next_data_idx):
         self._info.price = self._data[data_idx][1]

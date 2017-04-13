@@ -45,12 +45,10 @@ def linear(x, size, name, initializer=None, bias_init=0):
     b = tf.get_variable(name + "/b", [size], initializer=tf.constant_initializer(bias_init))
     return tf.matmul(x, w) + b
 
-
 def max_sample(logits, d):
     logits_normalized = logits - tf.reduce_max(logits, [1], keep_dims=True)
     value = tf.argmax(logits_normalized, 1)
     return tf.one_hot(value, d)
-
 
 def categorical_sample(logits, d):
     value = tf.squeeze(tf.multinomial(logits - tf.reduce_max(logits, [1], keep_dims=True), 1), [1])
@@ -71,11 +69,11 @@ class LSTMPolicy(object):
                 for k_w, k_h, s_w, s_h, f in get_config().conv_layers_2d:
                     x = tf.nn.elu(conv2d(x, f, "l{}".format(i + 1), [k_w, k_h], [s_w, s_h]))
                     i += 1
-            elif get_config().state_mode == StateMode.ONE_D or get_config().state_mode == StateMode.RETURNS:
+            elif get_config().state_mode == StateMode.ONE_D:
                 i = 0
-                for k, s, f in get_config().conv_layers_1d:
+                for k,s,f in get_config().conv_layers_1d:
                     x = tf.nn.elu(conv2d(x, f, "l{}".format(i + 1), [k, 1], [s, 1]))
-                    i += 1
+                    i+=1
         x = flatten(x)
         self.pos = tf.placeholder(tf.float32, [None, 1])
         if get_config().propogate_position_to_rnn:
@@ -88,7 +86,7 @@ class LSTMPolicy(object):
         if get_config().environment == EnvironmentType.FIN:
             if get_config().state_mode == StateMode.TWO_D:
                 size = get_config().rnn_2d_size
-            if get_config().state_mode == StateMode.ONE_D or get_config().state_mode == StateMode.RETURNS:
+            if get_config().state_mode == StateMode.ONE_D:
                 size = get_config().rnn_1d_size
 
         lstm = rnn.rnn_cell.BasicLSTMCell(size, state_is_tuple=True)
@@ -119,7 +117,6 @@ class LSTMPolicy(object):
             self.sample = max_sample(self.logits, ac_space)[0, :]
         else:
             self.sample = categorical_sample(self.logits, ac_space)[0, :]
-        # self.sample = categorical_sample(self.logits, ac_space)[0, :]
         self.sample_distribution = tf.nn.softmax(self.logits)
         self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
 
@@ -129,10 +126,8 @@ class LSTMPolicy(object):
     def act(self, ob, pos, c, h):
         sess = tf.get_default_session()
         return sess.run([self.sample, self.sample_distribution, self.vf] + self.state_out,
-                        {self.x: [ob], self.pos: [np.array([pos]).reshape((1))], self.state_in[0]: c,
-                         self.state_in[1]: h})
+                        {self.x: [ob], self.pos: [np.array([pos]).reshape((1))], self.state_in[0]: c, self.state_in[1]: h})
 
     def value(self, ob, pos, c, h):
         sess = tf.get_default_session()
-        return sess.run(self.vf, {self.x: [ob], self.pos: [np.array([pos])], self.state_in[0]: c, self.state_in[1]: h})[
-            0]
+        return sess.run(self.vf, {self.x: [ob], self.pos: [np.array([pos])], self.state_in[0]: c, self.state_in[1]: h})[0]
