@@ -19,10 +19,10 @@ start_px = 50.0
 
 # + 150K
 # easy : plain sin
-expectation = 0.0
-volatility = 0.0
-sin_amplitude_pct = 0.1
-rolling_factor = 0.0
+# expectation = 0.0
+# volatility = 0.0
+# sin_amplitude_pct = 0.1
+# rolling_factor = 0.0
 
 # + 150K
 # easy : modern vol, sin amplitude correlated to current price
@@ -67,6 +67,13 @@ rolling_factor = 0.0
 # expectation = 0.0
 # volatility = 35.0
 # sin_amplitude_pct = 0.01
+# rolling_factor = 0.01
+
+# medium
+expectation = 0.0
+volatility = 35.0
+sin_amplitude_pct = 0.02
+rolling_factor = 1.0
 # rolling_factor = 0.01
 
 # log normal distribution parameters calculation
