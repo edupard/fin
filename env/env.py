@@ -330,7 +330,7 @@ class Environment:
         # overwrite start and end for test mode
         if get_config().is_test_mode():
             self._ep_start_idx = start
-            self._ep_end_idx = min(start + get_config().train_episode_length + get_config().retrain_interval,
+            self._ep_end_idx = min(start + get_config().train_length + get_config().retrain_interval,
                                    self._data_length - 1)
 
         self._info = Info()
