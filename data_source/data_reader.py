@@ -11,8 +11,7 @@ from config import get_config
 def get_paths():
     PREPROCESSED_FOLDER_PATH = './data/preprocessed'
     if get_config().yahoo:
-        DATA_FOLDER_PATH = PREPROCESSED_FOLDER_PATH + '/{}_{}_{}'.format(get_config().ticker, get_config().start,
-                                                                         get_config().end)
+        DATA_FOLDER_PATH = PREPROCESSED_FOLDER_PATH + '/{}_{}_{}'.format(get_config().ticker, get_config().start, get_config().end)
     else:
         DATA_FOLDER_PATH = PREPROCESSED_FOLDER_PATH + '/{}_{}m'.format(get_config().ticker, get_config().bar_min)
 
@@ -49,19 +48,15 @@ class DataReader(object):
             data = yahoo.get_historical(get_config().start, get_config().end)
             print('Data retrieved')
             data_len = len(data)
-
             def reduce_time():
                 for idx in range(data_len):
                     yield datetime.datetime.strptime(data[idx]['Date'], '%Y-%m-%d').timestamp()
-
             def reduce_volume():
                 for idx in range(data_len):
                     yield float(data[idx]['Volume'])
-
             def reduce_px():
                 for idx in range(data_len):
                     yield float(data[idx]['Close'])
-
             col_time = np.fromiter(reduce_time(), dtype=np.float64)
             col_vol = np.fromiter(reduce_volume(), dtype=np.float64)
             col_px = np.fromiter(reduce_px(), dtype=np.float64)
@@ -199,22 +194,12 @@ class DataReader(object):
 
             col_ret = np.log(np.divide(col_close, col_last_close, out=col_ones, where=col_volume > 0))
 
-        # replace nan with current px
-        for idx in range(data_len):
-            if col_volume[idx] == 0:
-                col_open[idx] = col_px[idx]
-                col_close[idx] = col_px[idx]
-                col_high[idx] = col_px[idx]
-                col_low[idx] = col_px[idx]
+
 
         columns = list()
         columns.append(col_time)
         columns.append(col_px)
         columns.append(col_vol)
-        columns.append(col_open)
-        columns.append(col_close)
-        columns.append(col_high)
-        columns.append(col_low)
         data_dim = len(columns)
         self._data = np.append(self._data, columns)
         self._data = self._data.reshape(data_dim, data_len)
@@ -244,40 +229,12 @@ class DataReader(object):
             self._restore_preprocessed_data()
         self._postprocess_data()
 
+
     def _postprocess_data(self):
         print('Postprocessing data...')
         if get_config().switch_off_zero_bars:
-            cond = (self._data[:, 2] > 0)
+            cond = (self._data[:,2] > 0)
             self._data = self._data[cond]
-        if get_config().indicators_on:
-            NB = 65
-            TB = self._data.shape[0] - NB
-            col_h_ma = np.zeros(shape=(TB), dtype=np.float64)
-            col_l_ma = np.zeros(shape=(TB), dtype=np.float64)
-            col_h_std = np.zeros(shape=(TB), dtype=np.float64)
-            col_l_std = np.zeros(shape=(TB), dtype=np.float64)
-            for idx in range(TB):
-                h_slice = self._data[idx: idx + NB, 5]
-                l_slice = self._data[idx: idx + NB, 6]
-                v_slice = self._data[idx: idx + NB, 2]
-                t_v = np.sum(v_slice)
-                h_slice_v_w = h_slice * v_slice
-                l_slice_v_w = l_slice * v_slice
-                h_ma = np.sum(h_slice_v_w) / t_v
-                l_ma = np.sum(l_slice_v_w) / t_v
-                h_std = np.std(h_slice)
-                l_std = np.std(l_slice)
-
-                col_h_ma[idx] = h_ma
-                col_l_ma[idx] = l_ma
-                col_h_std[idx] = h_std
-                col_l_std[idx] = l_std
-
-
-
-            to_add = np.hstack([col_h_ma.reshape((TB,1)), col_l_ma.reshape((TB,1)), col_h_std.reshape((TB,1)), col_l_std.reshape((TB,1))])
-            self._data = np.hstack([self._data[NB:,], to_add])
-
 
     @property
     def start_time(self):

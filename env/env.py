@@ -203,8 +203,7 @@ class Environment:
             self._observation_space = Box(0.0, 1.0, [get_config().window_px_width, get_config().window_px_height, 1])
         elif get_config().state_mode == StateMode.ONE_D:
             # Lower and upper bound is incorrect but it doesnt matter
-            # o, c, h, l, v, h_ma,l_ma,h_u_ma,h_l_ma,l_u_ma,l_l_ma
-            self._observation_space = Box(0.0, 1.0, [get_config().ww + 1, 1, 11])
+            self._observation_space = Box(0.0, 1.0, [get_config().ww + 1, 1, 1])
 
         self._info = Info()
 
@@ -263,29 +262,12 @@ class Environment:
             return (px - px_min) / (px_max - px_min)
 
         if get_config().state_mode == StateMode.ONE_D:
-            self.one_d_state = np.zeros((get_config().ww + 1, 1, 11), dtype=np.float)
+            self.one_d_state = np.zeros((get_config().ww + 1, 1, 1), dtype=np.float)
             for i in range(get_config().ww + 1):
                 data_idx = last_data_idx - i
-                # px = self._data[data_idx][1]
-                # y = calc_scaled_y(px)
-                # self.one_d_state[get_config().ww - i][0][0] = y
-
-                self.one_d_state[get_config().ww - i][0][0] = calc_scaled_y(self._data[data_idx][3])
-                self.one_d_state[get_config().ww - i][0][1] = calc_scaled_y(self._data[data_idx][4])
-                self.one_d_state[get_config().ww - i][0][2] = calc_scaled_y(self._data[data_idx][5])
-                self.one_d_state[get_config().ww - i][0][3] = calc_scaled_y(self._data[data_idx][6])
-                self.one_d_state[get_config().ww - i][0][4] = calc_scaled_y(self._data[data_idx][2])
-                self.one_d_state[get_config().ww - i][0][5] = calc_scaled_y(self._data[data_idx][7])
-                self.one_d_state[get_config().ww - i][0][6] = calc_scaled_y(self._data[data_idx][8])
-                self.one_d_state[get_config().ww - i][0][7] = calc_scaled_y(
-                    self._data[data_idx][7] + 2 * self._data[data_idx][9])
-                self.one_d_state[get_config().ww - i][0][8] = calc_scaled_y(
-                    self._data[data_idx][7] - 2 * self._data[data_idx][9])
-                self.one_d_state[get_config().ww - i][0][9] = calc_scaled_y(
-                    self._data[data_idx][8] + 2 * self._data[data_idx][10])
-                self.one_d_state[get_config().ww - i][0][10] = calc_scaled_y(
-                    self._data[data_idx][8] - 2 * self._data[data_idx][10])
-
+                px = self._data[data_idx][1]
+                y = calc_scaled_y(px)
+                self.one_d_state[get_config().ww - i][0][0] = y
         if get_config().state_mode == StateMode.TWO_D or get_config().render:
             quads = np.zeros((get_config().ww + 1, 4), dtype=np.float)
             # First point

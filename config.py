@@ -63,14 +63,13 @@ class Config(object):
     # ticker = 'KO'
     # bar_min = 24 * 60
     # Brent
-    ticker = 'QO'
-    bar_min = 4  #` 15  # 4 * 60  # 5  # 60  # 15
+    # ticker = 'QO'
+    # bar_min = 15  # 4 * 60  # 5  # 60  # 15
     # Experiments
-    # ticker = 'EXP'
-    # bar_min = 30
+    ticker = 'EXP'
+    bar_min = 30
 
     switch_off_zero_bars = True
-    indicators_on = True
 
     model = '{}_{}_min'.format(ticker.lower(), bar_min)
     base_model_dir = os.path.join('./models/', model)
@@ -82,7 +81,7 @@ class Config(object):
     window_px_width = 160  # 42
     window_px_height = 160  # 42
     # window width in bars
-    ww = 200 #100
+    ww = 100
     # bars per second
     bps = 24.
     # frames per second
@@ -114,23 +113,23 @@ class Config(object):
     files_to_preserve = 1
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 126942#6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
-    train_episode_length = 7052#train_length
-    retrain_interval = 42314#train_episode_length  # // 6  # 1000 #train_episode_length  # 2100  # train_episode_length
+    train_length = 6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_episode_length = train_length
+    retrain_interval = train_episode_length #// 6  # 1000 #train_episode_length  # 2100  # train_episode_length
     train_seed = 0
 
     # Learning parameters
     num_global_steps = 20e8
-    algo_modification = False
+    algo_modification = True
     _lambda = 1.0
-    gamma = 0.98 #0.95
+    gamma = 0.95
     buffer_length = 100
     fwd_buffer_length = buffer_length if algo_modification else 0
     keep_prob = 1.0  # 0.5 # we need to fit - the question more about properties of strategy on the test set
 
     learning_rate = 0.0001
     enthropy_weight = 0.01
-    state_mode = StateMode.ONE_D
+    state_mode = StateMode.TWO_D
     # conv_layers_2d = [(3, 2, 32), (3, 2, 32), (3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 4), (3, 2, 2)]
     # rnn_2d_size = 8
     # conv_layers_2d = [(3, 2, 16), (3, 2, 16), (3, 2, 8), (3, 2, 8), (3, 2, 4), (3, 2, 4), (3, 2, 2)]
@@ -167,8 +166,8 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 4), (3, 2, 3), (3, 2, 2)]
     # fit perfectly
-    conv_layers_1d = [(3, 2, 200), (3, 2, 150), (3, 2, 150), (3, 2, 100), (3, 2, 100), (3, 2, 50)]
-    rnn_1d_size = 64  # 4  # 255
+    # conv_layers_1d = [(3, 2, 200), (3, 2, 150), (3, 2, 150), (3, 2, 100), (3, 2, 100), (3, 2, 50)]
+    # rnn_1d_size = 64  # 4  # 255
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32)]
     # rnn_1d_size = 4
     # conv_layers_1d = [(3, 2, 4), (3, 2, 4)]
@@ -176,8 +175,8 @@ class Config(object):
     # conv_layers_1d = [(3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (3, 2, 64), (4, 4, 64)]
     # rnn_1d_size = 64
     # leha model - 1h 6000 bars
-    # conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
-    # rnn_1d_size = 13
+    conv_layers_1d = [(3, 2, 32), (3, 2, 16), (3, 2, 1)]
+    rnn_1d_size = 13
     # more complicated model
     # conv_layers_1d = [(3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (3, 2, 32), (4, 4, 32)]
     # rnn_1d_size = 32
