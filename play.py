@@ -44,6 +44,7 @@ def main():
         idx = 0
 
         t_r = 0
+        t_r_c = 0
         days_passed = 0
         frames_passed = 0
         while not d and not get_buttons().esc_hit:
@@ -56,9 +57,11 @@ def main():
                 print('{} days gone'.format(days_passed))
 
             t_r += r
+            t_r_c += r_c
             eq[idx] += t_r
             if r != 0:
                 print('Cum reward: {:.3f} reward: {:.3f}'.format(t_r, r))
+                # print('Cum reward: {:.3f} with cost: {:.3f} reward: {:.3f}'.format(t_r, t_r_c, r))
             idx += 1
         print('long deals: {} length: {} short deals: {} length: {}'.format(i.long, i.long_length, i.short,
                                                                             i.short_length))

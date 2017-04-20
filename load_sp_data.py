@@ -78,9 +78,12 @@ with open('sp.csv', 'w', newline='') as f:
     lead_contract_idx = 0
 
     s_p = None
+    contract_switch = False
+    delta = 0
     for i in range(data.shape[1]):
         if i > switch_idxs[lead_contract_idx]:
             lead_contract_idx += 1
+            contract_switch = True
             # abandon cycle
             if lead_contract_idx == contracts - 1:
                 break
@@ -95,7 +98,10 @@ with open('sp.csv', 'w', newline='') as f:
         p_n = prices[lead_contract_idx]
         v = 0
         if v_n != 0 and v_f != 0:
-            s_p = p_f - p_n
+            if contract_switch:
+                delta = p_f - p_n - s_p
+                contract_switch = False
+            s_p = p_f - p_n - delta
             v = v_n + v_f
         dt = dt_beg + datetime.timedelta(minutes=i)
         writer.writerow([dt.timestamp(), s_p, v])
