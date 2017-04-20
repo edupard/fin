@@ -66,8 +66,10 @@ class Config(object):
     # ticker = 'QO'
     # bar_min = 15  # 4 * 60  # 5  # 60  # 15
     # Experiments
-    ticker = 'EXP'
-    bar_min = 30
+    # ticker = 'EXP'
+    # bar_min = 30
+    ticker = 'SP'
+    bar_min = 15
 
     switch_off_zero_bars = True
 
