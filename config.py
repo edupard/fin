@@ -106,7 +106,7 @@ class Config(object):
     # slippage + commission
     costs_on = False
     costs_adv = False
-    costs = 0.03
+    costs = 0.01
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
     reward_scale_multiplier = 100.0
