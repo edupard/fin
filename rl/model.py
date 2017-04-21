@@ -113,7 +113,7 @@ class LSTMPolicy(object):
         self.logits = linear(x, ac_space, "action", normalized_columns_initializer(0.01))
         self.vf = tf.reshape(linear(x, 1, "value", normalized_columns_initializer(1.0)), [-1])
         self.state_out = [lstm_c[:1, :], lstm_h[:1, :]]
-        if get_config().is_test_mode():
+        if get_config().is_test_mode() and not get_config().test_stohastic_policy:
             self.sample = max_sample(self.logits, ac_space)[0, :]
         else:
             self.sample = categorical_sample(self.logits, ac_space)[0, :]

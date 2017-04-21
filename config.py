@@ -121,6 +121,7 @@ class Config(object):
     train_episode_length = train_length
     retrain_interval = train_episode_length #// 6  # 1000 #train_episode_length  # 2100  # train_episode_length
     train_seed = 0
+    test_stohastic_policy = True
 
     # Learning parameters
     num_global_steps = 20e8
