@@ -2,6 +2,7 @@ import csv
 import os, fnmatch
 import datetime
 import numpy as np
+import math
 
 LKOH_DIR = './LKOH'
 ROSN_DIR = './ROSN'
@@ -59,24 +60,32 @@ with open('lr.csv', 'w', newline='') as f:
     writer = csv.writer(f)
 
     prices = [None] * 2
-    lr = None
     for i in range(data.shape[1]):
+        l_r = None
         #LKOH
         v = data[0, i, 4]
         if v != 0:
-            prices[0] = data[0, i, 3]
+            n_l_p = data[0, i, 3]
+            l_p = prices[0]
+            if l_p is not None:
+                l_r = math.log(n_l_p / l_p)
+            prices[0] = n_l_p
+        r_r = None
         # ROSN
-        v = data[0, i, 4]
+        v = data[1, i, 4]
         if v != 0:
-            prices[1] = data[1, i, 3]
+            n_r_p = data[1, i, 3]
+            r_p = prices[1]
+            if r_p is not None:
+                r_r = math.log(n_r_p / r_p)
+            prices[1] = n_r_p
 
         v_l = data[0, i, 4]
         v_r = data[1, i, 4]
-        p_l = prices[0]
-        p_r = prices[1]
         v = 0
-        if v_l != 0 and v_r != 0:
-            lr = p_l - p_r
+        lr = 0.
+        if v_l != 0 and v_r != 0 and r_r is not None and l_r is not None:
+            lr = r_r - l_r
             v = v_l + v_r
         dt = dt_beg + datetime.timedelta(minutes=i)
         writer.writerow([dt.timestamp(), lr, v])
