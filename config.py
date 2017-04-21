@@ -104,7 +104,7 @@ class Config(object):
 
     # Reward algo
     reward_type = RewardType.URPL
-    reward_algo = RewardAlgo.CCY
+    reward_algo = RewardAlgo.PCT
     # slippage + commission
     costs_on = False
     costs_adv = False
