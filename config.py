@@ -68,7 +68,9 @@ class Config(object):
     # Experiments
     # ticker = 'EXP'
     # bar_min = 30
-    ticker = 'SP'
+    # ticker = 'SP'
+    # bar_min = 15
+    ticker = 'LR'
     bar_min = 15
 
     switch_off_zero_bars = True
@@ -106,7 +108,7 @@ class Config(object):
     # slippage + commission
     costs_on = False
     costs_adv = False
-    costs = 0.01 # 0.03
+    costs = 0.0#0.01 # 0.03
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
     reward_scale_multiplier = 100.0
