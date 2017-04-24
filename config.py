@@ -63,8 +63,8 @@ class Config(object):
     # ticker = 'KO'
     # bar_min = 24 * 60
     # Brent
-    ticker = 'QO'
-    bar_min = 15  # 4 * 60  # 5  # 60  # 15
+    # ticker = 'QO'
+    # bar_min = 15  # 4 * 60  # 5  # 60  # 15
     # Experiments
     # ticker = 'EXP'
     # bar_min = 30
