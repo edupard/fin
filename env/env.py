@@ -498,9 +498,9 @@ class Environment:
         pos_mult = 1.0 if state == State.LONG else -1.0
         p1_eff = p1 + pos_mult * p1_cost
         p2_eff = p2 - pos_mult * p2_cost
-        return ccy + pos_mult * (p2_eff - p1_eff), pct + pos_mult * (
-            p2_eff - p1_eff) / p1_eff, lr + pos_mult * math.log(p2_eff / p1_eff)
-        # return ccy + pos_mult * (p2_eff - p1_eff), pct, lr
+        # return ccy + pos_mult * (p2_eff - p1_eff), pct + pos_mult * (
+        #     p2_eff - p1_eff) / p1_eff, lr + pos_mult * math.log(p2_eff / p1_eff)
+        return ccy + pos_mult * (p2_eff - p1_eff), pct, lr
 
     def stop(self):
         get_ui_thread().stop_env(self)
