@@ -70,7 +70,9 @@ class Config(object):
     # bar_min = 30
     # ticker = 'SP'
     # bar_min = 15
-    ticker = 'LR'
+    # ticker = 'LR'
+    # bar_min = 15
+    ticker = 'S1'
     bar_min = 15
 
     switch_off_zero_bars = True
@@ -108,7 +110,7 @@ class Config(object):
     # slippage + commission
     costs_on = False
     costs_adv = False
-    costs = 0.0#0.01 # 0.03
+    costs = 0.01 #0.0#0.01 # 0.03
     # NB: PCT reward do not converge due to floating point arithmetic precision
     # so we just scale reward to converge
     reward_scale_multiplier = 100.0
@@ -117,7 +119,7 @@ class Config(object):
     files_to_preserve = 1
     # Episode parameters
     mode = Mode.TRAIN
-    train_length = 6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
+    train_length = 4500 #6000  # 12000 #6000 #12 * 6000  # 6000  # 12 * 6000  # 3000  # 6000 * 4
     train_episode_length = train_length
     retrain_interval = train_episode_length #// 6  # 1000 #train_episode_length  # 2100  # train_episode_length
     train_seed = 0
