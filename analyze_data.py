@@ -250,7 +250,7 @@ with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
     predictions = tf.nn.softmax(l5)
     observations = tf.placeholder(tf.float32, shape=(None, 2))
     loss = tf.reduce_mean(-tf.reduce_sum(observations * tf.log(predictions), reduction_indices=[1]))
-    train_step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss)
+    train_step = tf.train.AdamOptimizer(learning_rate=0.00005).minimize(loss)
 
     saver = tf.train.Saver()
     sess.run(tf.global_variables_initializer())
@@ -285,7 +285,7 @@ with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
                 observations: o
             }
             # l = sess.run(loss, feed_dict)
-            l, _ = sess.run([loss, train_step], feed_dict)
+            l, p, _ = sess.run([loss, predictions, train_step], feed_dict)
             total_loss += l
             progress = b // (batches_per_epoch // 10)
             if progress != curr_progress:
