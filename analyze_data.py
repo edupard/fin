@@ -10,11 +10,13 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.ticker import FormatStrFormatter
 import tensorflow as tf
+import scipy.stats as stats
 
 NUM_WEEKS = 12
 NUM_DAYS = 5
-EPOCHS_TO_TRAIN = 1000
+EPOCHS_TO_TRAIN = 0
 BATCH_SIZE = 500
+PERCENTILE = 10
 
 TRAIN_UP_TO_DATE = datetime.datetime.strptime('2010-01-01', '%Y-%m-%d')
 
@@ -66,7 +68,7 @@ traded_stocks = mask[:, :].sum(0)
 #     ax.plot_date(raw_mpl_dt, g, fmt='o')
 
 
-# plt.show(True)
+#
 
 start_date = datetime.datetime.fromtimestamp(raw_dt[0])
 end_date = datetime.datetime.fromtimestamp(raw_dt[len(raw_dt) - 1])
@@ -115,8 +117,33 @@ def get_dates_for_daily_return(sunday, n_d):
     return dates[::-1]
 
 
-preprocessed = None
 train_records = 0
+train_weeks = 0
+total_weeks = 0
+data_set_records = 0
+
+dr = None
+wr = None
+hpr = None
+c_l = None
+c_s = None
+stocks = None
+w_data_index = None
+w_num_stocks = None
+w_enter_index = None
+w_exit_index = None
+
+
+def append_data(data, _data):
+    if data is None:
+        return _data
+    else:
+        return np.concatenate([data, _data], axis=0)
+
+
+def make_array(value):
+    return np.array([value]).astype(np.int32)
+
 
 while True:
     # iterate over weeks
@@ -132,17 +159,17 @@ while True:
     d_r_i = get_dates_for_daily_return(sunday, NUM_DAYS)
     if d_r_i is None:
         continue
+
     # stocks slice on days used to calculate returns
     s_s = mask[:, w_r_i + d_r_i]
     # tradable stocks slice
     t_s = np.all(s_s, axis=1)
     # get tradable stocks indices
     t_s_i = np.where(t_s)[0]
+    stocks = append_data(stocks, t_s_i)
+
     # sample size
     num_stocks = t_s_i.shape[0]
-    # record train set size
-    if sunday <= TRAIN_UP_TO_DATE:
-        train_records += num_stocks
 
     # daily closes
     # numpy can not slice on indices in 2 dimensions
@@ -162,6 +189,8 @@ while True:
     # calc z score
     d_n_r = (d_c_r - d_r_m) / d_r_std
 
+    dr = append_data(dr, d_n_r)
+
     # weekly closes
     # numpy can not slice on indices in 2 dimensions
     # so slice in one dimension followed by slice in another dimension
@@ -179,65 +208,177 @@ while True:
     w_r_std = np.std(w_c_r, axis=0)
     # calc z score
     w_n_r = (w_c_r - w_r_m) / w_r_std
-    # calculate 12 week z score median
-    w_r_med = np.median(w_n_r[:, NUM_WEEKS - 1])
-    w_r_med = np.full(num_stocks, w_r_med)
-    # simple strategy class
-    s_s_c_l = (w_n_r[:, NUM_WEEKS - 1] >= w_r_med).astype(np.float)
-    s_s_c_s = (w_n_r[:, NUM_WEEKS - 1] < w_r_med).astype(np.float)
 
-    # calc hpr
-    hpr = (w_c[:, NUM_WEEKS + 1] - w_c[:, NUM_WEEKS]) / w_c[:, NUM_WEEKS]
-    hpr_med = np.median(hpr)
-    hpr_med = np.full(num_stocks, hpr_med)
-    c_l = (hpr >= hpr_med).astype(np.float)
-    c_s = (hpr < hpr_med).astype(np.float)
+    wr = append_data(wr, w_n_r)
 
-    # enter - exit price
-    enter_px = w_c[:, NUM_WEEKS]
-    exit_px = w_c[:, NUM_WEEKS + 1]
-    # enter - exit date idx
+    _hpr = (w_c[:, NUM_WEEKS + 1] - w_c[:, NUM_WEEKS]) / w_c[:, NUM_WEEKS]
+    hpr = append_data(hpr, _hpr)
+
+    hpr_med = np.median(_hpr)
+    _c_l = _hpr >= hpr_med
+    _c_s = ~_c_l
+    c_l = append_data(c_l, _c_l)
+    c_s = append_data(c_s, _c_s)
+
     enter_date_idx = w_r_i[NUM_WEEKS]
     exit_date_idx = w_r_i[NUM_WEEKS + 1]
-    enter_date = start_date + datetime.timedelta(days=enter_date_idx)
-    exit_date = start_date + datetime.timedelta(days=exit_date_idx)
-    enter_date_idx = np.full(num_stocks, enter_date_idx)
-    exit_date_idx = np.full(num_stocks, exit_date_idx)
-    enter_date = np.full(num_stocks, enter_date.timestamp())
-    exit_date = np.full(num_stocks, exit_date.timestamp())
 
-    week_data = np.concatenate([
-        w_n_r,
-        d_n_r,
-        c_l[:, np.newaxis],
-        c_s[:, np.newaxis],
-        t_s_i[:, np.newaxis],
-        hpr[:, np.newaxis],
-        hpr_med[:, np.newaxis],
-        w_r_med[:, np.newaxis],
-        s_s_c_l[:, np.newaxis],
-        s_s_c_s[:, np.newaxis],
-        enter_px[:, np.newaxis],
-        exit_px[:, np.newaxis],
-        enter_date_idx[:, np.newaxis],
-        exit_date_idx[:, np.newaxis],
-        enter_date[:, np.newaxis],
-        exit_date[:, np.newaxis]
-    ], axis=1)
+    w_data_index = append_data(w_data_index, make_array(data_set_records))
+    w_num_stocks = append_data(w_num_stocks, make_array(num_stocks))
+    w_enter_index = append_data(w_enter_index, make_array(enter_date_idx))
+    w_exit_index = append_data(w_exit_index, make_array(exit_date_idx))
 
-    if preprocessed is None:
-        preprocessed = week_data
-    else:
-        preprocessed = np.concatenate([preprocessed, week_data], axis=0)
+    # record counts
+    data_set_records += num_stocks
+    total_weeks += 1
+    if sunday <= TRAIN_UP_TO_DATE:
+        train_records += num_stocks
+        train_weeks += 1
 
-train_data = preprocessed[:train_records, :]
-test_data = preprocessed[train_records:, :]
+# naming convention: s_c_l mean Simple strategy Class Long e_c_l mean Enhanced strategy Class Long
+# naming convention: s_s_l mean Simple strategy Stock(selected) Long e_c_l mean Enhanced strategy Stock(selected) Long
+
+s_c_l = np.zeros((data_set_records), dtype=np.bool)
+s_c_s = np.zeros((data_set_records), dtype=np.bool)
+
+s_s_l = np.zeros((data_set_records), dtype=np.bool)
+s_s_s = np.zeros((data_set_records), dtype=np.bool)
+
+t_hpr = np.zeros((total_weeks))
+b_hpr = np.zeros((total_weeks))
+t_stocks = np.zeros((total_weeks))
+b_stocks = np.zeros((total_weeks))
+
+for i in range(total_weeks):
+    w_i = i
+    beg = w_data_index[w_i]
+    end = beg + w_num_stocks[w_i]
+
+    l_w_r = wr[beg: end, NUM_WEEKS - 1]
+
+    median = np.median(l_w_r)
+    _s_c_l = s_c_l[beg: end]
+    _s_c_s = s_c_s[beg: end]
+    pred_long_cond = l_w_r >= median
+    _s_c_l |= pred_long_cond
+    _s_c_s |= ~pred_long_cond
+
+    top_bound = np.percentile(l_w_r, 100 - PERCENTILE)
+    bottom_bound = np.percentile(l_w_r, PERCENTILE)
+    _s_s_l = s_s_l[beg: end]
+    _s_s_s = s_s_s[beg: end]
+    long_cond = l_w_r >= top_bound
+    short_cond = l_w_r <= bottom_bound
+    _s_s_l |= long_cond
+    _s_s_s |= short_cond
+    _hpr = hpr[beg: end]
+    l_hpr = _hpr[_s_s_l]
+    s_hpr = _hpr[_s_s_s]
+    top_hpr = np.mean(l_hpr)
+    bottom_hpr = np.mean(s_hpr)
+    t_hpr[w_i] = top_hpr
+    b_hpr[w_i] = bottom_hpr
+    t_stocks[w_i] = l_hpr.shape[0]
+    b_stocks[w_i] = s_hpr.shape[0]
+
+
+def confusion_matrix(a_l, a_s, p_l, p_s):
+    p_l_a_l = (p_l & a_l).sum(0)
+    p_l_a_s = (p_l & a_s).sum(0)
+    p_s_a_s = (p_s & a_s).sum(0)
+    p_s_a_l = (p_s & a_l).sum(0)
+    total = p_l_a_l + p_l_a_s + p_s_a_s + p_s_a_l
+    print('L +: {:.2f} -: {:.2f} accuracy: {:.2f}'
+        .format(
+        100. * p_l_a_l / total,
+        100. * p_l_a_s / total,
+        100. * p_l_a_l / (p_l_a_l + p_l_a_s)
+    ))
+    print('S +: {:.2f} -: {:.2f} accuracy: {:.2f}'
+        .format(
+        100. * p_s_a_s / total,
+        100. * p_s_a_l / total,
+        100. * p_s_a_s / (p_s_a_s + p_s_a_l)
+    ))
+    print('Total accuracy: {:.2f}'
+        .format(
+        100. * (p_l_a_l + p_s_a_s) / total
+    ))
+
+
+def hpr_analysis(t_hpr, b_hpr):
+    d_hpr = t_hpr - b_hpr
+    t_t, p_t = stats.ttest_1samp(t_hpr, 0)
+    t_b, p_b = stats.ttest_1samp(b_hpr, 0)
+    t_d, p_d = stats.ttest_1samp(d_hpr, 0)
+    print(
+        "T: {:.2f} t-stat: {:.2f} p: {:.2f} B: {:.2f} t-stat: {:.2f} p: {:.2f} D: {:.2f} t-stat: {:.2f} p: {:.2f}".format(
+            np.mean(t_hpr),
+            t_t,
+            p_t,
+            np.mean(b_hpr),
+            t_b,
+            p_b,
+            np.mean(d_hpr),
+            t_d,
+            p_d
+        ))
+
+
+def wealth_graph(t_hpr, b_hpr, t_stocks, b_stocks, w_exit_index):
+    def format_time_labels(ax):
+        ax.xaxis.set_major_formatter(time_ftm)
+        for label in ax.xaxis.get_ticklabels():
+            label.set_rotation(45)
+
+    def draw_grid(ax):
+        ax.grid(True, linestyle='-', color='0.75')
+
+    def hide_time_labels(ax):
+        plt.setp(ax.get_xticklabels(), visible=False)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(3, 1, 1)
+    draw_grid(ax)
+    hide_time_labels(ax)
+
+    # progress = (t_hpr - b_hpr) + 1.00
+    # wealth = np.cumprod(progress)
+
+    progress = t_hpr - b_hpr
+    wealth = np.cumsum(progress)
+
+
+    ax.plot_date(raw_mpl_dt[w_exit_index], wealth, color='b', fmt='-')
+
+    ax = fig.add_subplot(3, 1, 2, sharex=ax)
+    ax.grid(True, linestyle='-', color='0.75')
+    draw_grid(ax)
+    hide_time_labels(ax)
+    ax.plot_date(raw_mpl_dt[w_exit_index], t_stocks, color='g', fmt='o')
+
+    ax = fig.add_subplot(3, 1, 3, sharex=ax)
+    ax.grid(True, linestyle='-', color='0.75')
+    draw_grid(ax)
+    format_time_labels(ax)
+    ax.plot_date(raw_mpl_dt[w_exit_index], b_stocks, color='r', fmt='o')
+
+
+confusion_matrix(c_l, c_s, s_c_l, s_c_s)
+hpr_analysis(t_hpr, b_hpr)
+wealth_graph(t_hpr, b_hpr, t_stocks, b_stocks, w_exit_index)
+
+# train_data = preprocessed[:train_records, :]
+# test_data = preprocessed[train_records:, :]
+
+prob_l = np.zeros((data_set_records), dtype=np.float)
 
 
 def linear(x, size, name, initializer=None, bias_init=0):
     w = tf.get_variable(name + "/w", [x.get_shape()[1], size], initializer=initializer)
     b = tf.get_variable(name + "/b", [size], initializer=tf.constant_initializer(bias_init))
     return tf.matmul(x, w) + b
+    # return tf.nn.relu(tf.matmul(x, w) + b)
 
 
 g = tf.Graph()
@@ -264,8 +405,8 @@ with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
     except:
         pass
 
-    batches_per_epoch = train_data.shape[0] // BATCH_SIZE
-    data_indices = np.arange(train_data.shape[0])
+    batches_per_epoch = train_records // BATCH_SIZE
+    data_indices = np.arange(train_records)
     for train_iteration in range(EPOCHS_TO_TRAIN):
         epoch = epoch_number + train_iteration + 1
         total_loss = 0
@@ -275,11 +416,13 @@ with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
         for b in range(batches_per_epoch):
             # get data indices for slice
             d_i_s = data_indices[b * BATCH_SIZE: (b + 1) * BATCH_SIZE]
-            batch_data = preprocessed[d_i_s, :]
 
-            INPUT_DIM = NUM_WEEKS + NUM_DAYS
-            i = batch_data[:, :INPUT_DIM]
-            o = batch_data[:, INPUT_DIM: INPUT_DIM + 2]
+            _wr = wr[d_i_s, :]
+            _dr = dr[d_i_s, :]
+            _cl = c_l[d_i_s].reshape((-1, 1))
+            _cs = c_s[d_i_s].reshape((-1, 1))
+            i = np.concatenate([_wr, _dr], axis=1)
+            o = np.concatenate([_cl, _cs], axis=1).astype(np.float32)
             feed_dict = {
                 input: i,
                 observations: o
@@ -294,3 +437,68 @@ with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
 
         print("epoch: {} loss: {}".format(epoch, total_loss / batches_per_epoch))
         saver.save(sess, 'stocks/stocks.ckpt', global_step=epoch)
+    for idx in range(data_set_records):
+        _wr = wr[[idx], :]
+        _dr = dr[[idx], :]
+        i = np.concatenate([_wr, _dr], axis=1)
+        feed_dict = {
+            input: i
+        }
+        p_dist = sess.run(predictions, feed_dict)
+        prob_l[idx] = p_dist[0, 0]
+
+# naming convention: s_c_l mean Simple strategy Class Long e_c_l mean Enhanced strategy Class Long
+# naming convention: s_s_l mean Simple strategy Stock(selected) Long e_c_l mean Enhanced strategy Stock(selected) Long
+
+e_c_l = np.zeros((data_set_records), dtype=np.bool)
+e_c_s = np.zeros((data_set_records), dtype=np.bool)
+
+e_s_l = np.zeros((data_set_records), dtype=np.bool)
+e_s_s = np.zeros((data_set_records), dtype=np.bool)
+
+t_e_hpr = np.zeros((total_weeks))
+b_e_hpr = np.zeros((total_weeks))
+t_e_stocks = np.zeros((total_weeks))
+b_e_stocks = np.zeros((total_weeks))
+
+for i in range(total_weeks):
+    w_i = i
+    beg = w_data_index[w_i]
+    end = beg + w_num_stocks[w_i]
+
+    _prob_l = prob_l[beg: end]
+
+    median = np.median(_prob_l)
+    _e_c_l = e_c_l[beg: end]
+    _e_c_s = e_c_s[beg: end]
+    pred_long_cond = _prob_l >= median
+    _e_c_l |= pred_long_cond
+    _e_c_s |= ~pred_long_cond
+
+    top_bound = np.percentile(_prob_l, 100 - PERCENTILE)
+    bottom_bound = np.percentile(_prob_l, PERCENTILE)
+    _e_s_l = e_s_l[beg: end]
+    _e_s_s = e_s_s[beg: end]
+    long_cond = _prob_l >= top_bound
+    short_cond = _prob_l <= bottom_bound
+    _e_s_l |= long_cond
+    _e_s_s |= short_cond
+    _hpr = hpr[beg: end]
+    l_hpr = _hpr[_e_s_l]
+    s_hpr = _hpr[_e_s_s]
+    top_hpr = np.mean(l_hpr)
+    bottom_hpr = np.mean(s_hpr)
+    t_e_hpr[w_i] = top_hpr
+    b_e_hpr[w_i] = bottom_hpr
+    t_e_stocks[w_i] = l_hpr.shape[0]
+    b_e_stocks[w_i] = s_hpr.shape[0]
+
+confusion_matrix(c_l[train_records:], c_s[train_records:], e_c_l[train_records:], e_c_s[train_records:])
+hpr_analysis(t_e_hpr[train_weeks:], b_e_hpr[train_weeks:])
+wealth_graph(t_e_hpr[train_weeks:],
+             b_e_hpr[train_weeks:],
+             t_e_stocks[train_weeks:],
+             b_e_stocks[train_weeks:],
+             w_exit_index[train_weeks:])
+
+plt.show(True)
