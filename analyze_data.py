@@ -11,16 +11,36 @@ import matplotlib
 from matplotlib.ticker import FormatStrFormatter
 import tensorflow as tf
 import scipy.stats as stats
+import math
+
+from rbm import RBM
+from au import AutoEncoder
+from ffnn import FFNN
 
 NUM_WEEKS = 12
 NUM_DAYS = 5
-EPOCHS_TO_TRAIN = 0
-BATCH_SIZE = 500
+
+TRAIN_RBM = False
+RBM_EPOCH_TO_TRAIN = 50
+RBM_BATCH_SIZE = 10
+
+TRAIN_AU = False
+LOAD_RBM_WEIGHTS = True
+AU_EPOCH_TO_TRAIN = 30
+AU_BATCH_SIZE = 10
+
+TRAIN_FFNN = False
+LOAD_AU_WEIGHTS = True
+FFNN_EPOCH_TO_TRAIN = 1000
+FFNN_BATCH_SIZE = 10
+
 PERCENTILE = 10
 
 TRAIN_UP_TO_DATE = datetime.datetime.strptime('2010-01-01', '%Y-%m-%d')
 
-time_ftm = matplotlib.dates.DateFormatter('%y %b %d')
+DDMMMYY_FMT = matplotlib.dates.DateFormatter('%y %b %d')
+
+YYYY_FMT = matplotlib.dates.DateFormatter('%Y')
 
 input = np.load('nasdaq_raw_data.npz')
 raw_dt = input['raw_dt']
@@ -51,6 +71,11 @@ mask = g_a[:, :] > 10000000
 # ax.xaxis.set_major_formatter(time_ftm)
 # for label in ax.xaxis.get_ticklabels():
 #     label.set_rotation(45)
+
+# for i in range(20):
+#     idx = random.randrange(0, raw_data.shape[0])
+#     px = raw_data[i, :, 3]
+#     ax.plot_date(raw_mpl_dt, px, fmt='-')
 
 # ax.plot_date(raw_mpl_dt, g_a_a, color='b', fmt='o')
 
@@ -156,7 +181,7 @@ while True:
     if w_r_i is None:
         continue
     # continue if all data not availiable yet
-    d_r_i = get_dates_for_daily_return(sunday, NUM_DAYS)
+    d_r_i = get_dates_for_daily_return(sunday - datetime.timedelta(days=7), NUM_DAYS)
     if d_r_i is None:
         continue
 
@@ -235,52 +260,53 @@ while True:
         train_records += num_stocks
         train_weeks += 1
 
+
+def calc_classes_and_decisions(data_set_records, total_weeks, data):
+    c_l = np.zeros((data_set_records), dtype=np.bool)
+    c_s = np.zeros((data_set_records), dtype=np.bool)
+
+    s_l = np.zeros((data_set_records), dtype=np.bool)
+    s_s = np.zeros((data_set_records), dtype=np.bool)
+
+    top_hpr = np.zeros((total_weeks))
+    bottom_hpr = np.zeros((total_weeks))
+    top_stocks_num = np.zeros((total_weeks))
+    bottom_stocks_num = np.zeros((total_weeks))
+
+    for i in range(total_weeks):
+        w_i = i
+        beg = w_data_index[w_i]
+        end = beg + w_num_stocks[w_i]
+
+        _data = data[beg: end]
+
+        median = np.median(_data)
+        _s_c_l = c_l[beg: end]
+        _s_c_s = c_s[beg: end]
+        pred_long_cond = _data >= median
+        _s_c_l |= pred_long_cond
+        _s_c_s |= ~pred_long_cond
+
+        top_bound = np.percentile(_data, 100 - PERCENTILE)
+        bottom_bound = np.percentile(_data, PERCENTILE)
+        _s_s_l = s_l[beg: end]
+        _s_s_s = s_s[beg: end]
+        long_cond = _data >= top_bound
+        short_cond = _data <= bottom_bound
+        _s_s_l |= long_cond
+        _s_s_s |= short_cond
+        _hpr = hpr[beg: end]
+        l_hpr = _hpr[_s_s_l]
+        s_hpr = _hpr[_s_s_s]
+        top_hpr[w_i] = np.mean(l_hpr)
+        bottom_hpr[w_i] = np.mean(s_hpr)
+        top_stocks_num[w_i] = l_hpr.shape[0]
+        bottom_stocks_num[w_i] = s_hpr.shape[0]
+    return c_l, c_s, top_hpr, bottom_hpr, top_stocks_num, bottom_stocks_num
+
+
 # naming convention: s_c_l mean Simple strategy Class Long e_c_l mean Enhanced strategy Class Long
 # naming convention: s_s_l mean Simple strategy Stock(selected) Long e_c_l mean Enhanced strategy Stock(selected) Long
-
-s_c_l = np.zeros((data_set_records), dtype=np.bool)
-s_c_s = np.zeros((data_set_records), dtype=np.bool)
-
-s_s_l = np.zeros((data_set_records), dtype=np.bool)
-s_s_s = np.zeros((data_set_records), dtype=np.bool)
-
-t_hpr = np.zeros((total_weeks))
-b_hpr = np.zeros((total_weeks))
-t_stocks = np.zeros((total_weeks))
-b_stocks = np.zeros((total_weeks))
-
-for i in range(total_weeks):
-    w_i = i
-    beg = w_data_index[w_i]
-    end = beg + w_num_stocks[w_i]
-
-    l_w_r = wr[beg: end, NUM_WEEKS - 1]
-
-    median = np.median(l_w_r)
-    _s_c_l = s_c_l[beg: end]
-    _s_c_s = s_c_s[beg: end]
-    pred_long_cond = l_w_r >= median
-    _s_c_l |= pred_long_cond
-    _s_c_s |= ~pred_long_cond
-
-    top_bound = np.percentile(l_w_r, 100 - PERCENTILE)
-    bottom_bound = np.percentile(l_w_r, PERCENTILE)
-    _s_s_l = s_s_l[beg: end]
-    _s_s_s = s_s_s[beg: end]
-    long_cond = l_w_r >= top_bound
-    short_cond = l_w_r <= bottom_bound
-    _s_s_l |= long_cond
-    _s_s_s |= short_cond
-    _hpr = hpr[beg: end]
-    l_hpr = _hpr[_s_s_l]
-    s_hpr = _hpr[_s_s_s]
-    top_hpr = np.mean(l_hpr)
-    bottom_hpr = np.mean(s_hpr)
-    t_hpr[w_i] = top_hpr
-    b_hpr[w_i] = bottom_hpr
-    t_stocks[w_i] = l_hpr.shape[0]
-    b_stocks[w_i] = s_hpr.shape[0]
-
 
 def confusion_matrix(a_l, a_s, p_l, p_s):
     p_l_a_l = (p_l & a_l).sum(0)
@@ -308,26 +334,30 @@ def confusion_matrix(a_l, a_s, p_l, p_s):
 
 def hpr_analysis(t_hpr, b_hpr):
     d_hpr = t_hpr - b_hpr
-    t_t, p_t = stats.ttest_1samp(t_hpr, 0)
-    t_b, p_b = stats.ttest_1samp(b_hpr, 0)
-    t_d, p_d = stats.ttest_1samp(d_hpr, 0)
+    t_hpr_mean = np.mean(t_hpr)
+    b_hpr_mean = np.mean(b_hpr)
+    d_hpr_mean = np.mean(d_hpr)
+
+    t_t, p_t = stats.ttest_1samp(t_hpr, t_hpr_mean)
+    t_b, p_b = stats.ttest_1samp(b_hpr, b_hpr_mean)
+    t_d, p_d = stats.ttest_1samp(d_hpr, d_hpr_mean)
     print(
-        "T: {:.2f} t-stat: {:.2f} p: {:.2f} B: {:.2f} t-stat: {:.2f} p: {:.2f} D: {:.2f} t-stat: {:.2f} p: {:.2f}".format(
-            np.mean(t_hpr),
+        "T: {:.4f} t-stat: {:.2f} p: {:.2f} B: {:.4f} t-stat: {:.2f} p: {:.2f} D: {:.4f} t-stat: {:.2f} p: {:.2f}".format(
+            t_hpr_mean,
             t_t,
             p_t,
-            np.mean(b_hpr),
+            b_hpr_mean,
             t_b,
             p_b,
-            np.mean(d_hpr),
+            d_hpr_mean,
             t_d,
             p_d
         ))
 
 
 def wealth_graph(t_hpr, b_hpr, t_stocks, b_stocks, w_exit_index):
-    def format_time_labels(ax):
-        ax.xaxis.set_major_formatter(time_ftm)
+    def format_time_labels(ax, fmt):
+        ax.xaxis.set_major_formatter(fmt)
         for label in ax.xaxis.get_ticklabels():
             label.set_rotation(45)
 
@@ -337,42 +367,129 @@ def wealth_graph(t_hpr, b_hpr, t_stocks, b_stocks, w_exit_index):
     def hide_time_labels(ax):
         plt.setp(ax.get_xticklabels(), visible=False)
 
+    def calc_dd(r):
+        def generate_previous_max():
+            max = 0.0
+            for idx in range(len(r)):
+                # update max
+                if r[idx] > max:
+                    max = r[idx]
+                yield max
+
+        prev_max = np.fromiter(generate_previous_max(), dtype=np.float64)
+        dd_a = r - prev_max
+        return np.min(dd_a)
+
+    def calc_sharp(r):
+        return math.sqrt(r.shape[0]) * np.mean(r) / np.std(r)
+
     fig = plt.figure()
-    ax = fig.add_subplot(3, 1, 1)
-    draw_grid(ax)
-    hide_time_labels(ax)
 
-    # progress = (t_hpr - b_hpr) + 1.00
-    # wealth = np.cumprod(progress)
+    diff = t_hpr - b_hpr
 
-    progress = t_hpr - b_hpr
+    progress = diff
     wealth = np.cumsum(progress)
+    dd = calc_dd(wealth)
+    sharp = calc_sharp(diff)
 
-
+    ax = fig.add_subplot(1, 1, 1)
+    draw_grid(ax)
+    format_time_labels(ax, fmt=DDMMMYY_FMT)
+    ax.set_title("1 USD PL Sharp: %.3f Drop down: %.3f" % (sharp, dd))
     ax.plot_date(raw_mpl_dt[w_exit_index], wealth, color='b', fmt='-')
 
-    ax = fig.add_subplot(3, 1, 2, sharex=ax)
-    ax.grid(True, linestyle='-', color='0.75')
+    rc_progress = (diff) + 1.00
+    rc_wealth = np.cumprod(rc_progress) - 1.
+    rc_dd = calc_dd(rc_wealth)
+
+    rc_base = np.cumprod(rc_progress)
+    rc_r = (rc_base[1:] - rc_base[:-1])/rc_base[:-1]
+    rc_r = np.concatenate([np.array([rc_base[0] - 1.]),rc_r])
+    rc_sharp = calc_sharp(rc_r)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, sharex=ax)
     draw_grid(ax)
-    hide_time_labels(ax)
-    ax.plot_date(raw_mpl_dt[w_exit_index], t_stocks, color='g', fmt='o')
+    # hide_time_labels(ax)
+    ax.set_title("1 USD PL RECAP Drop down: %.3f" % (rc_dd))
+    ax.plot_date(raw_mpl_dt[w_exit_index], rc_wealth, color='b', fmt='-')
+    format_time_labels(ax, fmt=DDMMMYY_FMT)
+    # ax = fig.add_subplot(3, 1, 3, sharex=ax)
+    # draw_grid(ax)
+    # format_time_labels(ax)
+    # ax.plot_date(raw_mpl_dt[w_exit_index], t_stocks, color='g', fmt='o')
+    # ax.plot_date(raw_mpl_dt[w_exit_index], b_stocks, color='r', fmt='o')
 
-    ax = fig.add_subplot(3, 1, 3, sharex=ax)
-    ax.grid(True, linestyle='-', color='0.75')
+    fig = plt.figure()
+
+    yr = []
+    yr_alt = []
+    yts = []
+    c_y = datetime.datetime.fromtimestamp(raw_dt[w_exit_index[0]]).year
+
+
+    c_yr = 0.
+    c_y_w = 0
+
+    c_yr_beg_w = 1.
+    c_yr_end_w = wealth[0] + 1.
+
+    w_i = []
+
+    weeks_to_append_year = 365//7*0.8
+    for w in range(t_hpr.shape[0]):
+        y = datetime.datetime.fromtimestamp(raw_dt[w_exit_index[w]]).year
+
+        c_yr_end_w = wealth[w] + 1.
+
+        if y != c_y:
+            w_i.append(w)
+            if c_y_w > weeks_to_append_year:
+                yr_alt.append((c_yr_end_w - c_yr_beg_w) / c_yr_beg_w * 100.0)
+                yr.append(c_yr * 100.0)
+                dt =  datetime.date(year=c_y,day=1,month=1)
+                yts.append(matplotlib.dates.date2num(dt))
+            c_yr_beg_w = c_yr_end_w
+            c_y = y
+            c_yr = 0.
+
+            c_y_w = 0
+        c_yr += diff[w]
+        c_y_w += 1
+
+
+    if c_y_w > weeks_to_append_year:
+        yr_alt.append((c_yr_end_w - c_yr_beg_w) / c_yr_beg_w * 100.0)
+        yr.append(c_yr)
+        dt = datetime.date(year=c_y, day=1, month=1)
+        yts.append(matplotlib.dates.date2num(dt))
+
+    ax = fig.add_subplot(1, 1, 1)
     draw_grid(ax)
-    format_time_labels(ax)
-    ax.plot_date(raw_mpl_dt[w_exit_index], b_stocks, color='r', fmt='o')
+    format_time_labels(ax, fmt=YYYY_FMT)
+    ax.bar(yts, yr, color='b', width=100)
+    ax.xaxis_date()
+    ax.set_title("Year pct return")
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(1, 1, 1)
+    # draw_grid(ax)
+    # format_time_labels(ax, fmt=YYYY_FMT)
+    # ax.bar(yts, yr_alt, color='b', width=100)
+    # ax.xaxis_date()
+    # ax.set_title("Year pct return alt")
+
+    with open('pl.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        for w in range(wealth.shape[0]):
+            dt = datetime.datetime.fromtimestamp(raw_dt[w_exit_index[w]])
+            _wealth = wealth[w]
+            _rc_wealth = rc_wealth[w]
+            writer.writerow((dt.strftime('%Y-%m-%d'), _wealth, _rc_wealth))
 
 
-confusion_matrix(c_l, c_s, s_c_l, s_c_s)
-hpr_analysis(t_hpr, b_hpr)
-wealth_graph(t_hpr, b_hpr, t_stocks, b_stocks, w_exit_index)
-
-# train_data = preprocessed[:train_records, :]
-# test_data = preprocessed[train_records:, :]
 
 prob_l = np.zeros((data_set_records), dtype=np.float)
-
 
 def linear(x, size, name, initializer=None, bias_init=0):
     w = tf.get_variable(name + "/w", [x.get_shape()[1], size], initializer=initializer)
@@ -381,117 +498,177 @@ def linear(x, size, name, initializer=None, bias_init=0):
     # return tf.nn.relu(tf.matmul(x, w) + b)
 
 
-g = tf.Graph()
-with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
-    input = tf.placeholder(tf.float32, shape=(None, NUM_WEEKS + NUM_DAYS))
-    l2 = linear(input, 40, 'l2', initializer=tf.contrib.layers.xavier_initializer())
-    l3 = linear(l2, 4, 'l3', initializer=tf.contrib.layers.xavier_initializer())
-    l4 = linear(l3, 50, 'l4', initializer=tf.contrib.layers.xavier_initializer())
-    l5 = linear(l4, 2, 'l5', initializer=tf.contrib.layers.xavier_initializer())
-    predictions = tf.nn.softmax(l5)
-    observations = tf.placeholder(tf.float32, shape=(None, 2))
-    loss = tf.reduce_mean(-tf.reduce_sum(observations * tf.log(predictions), reduction_indices=[1]))
-    train_step = tf.train.AdamOptimizer(learning_rate=0.00005).minimize(loss)
+rbmobject1 = RBM(17, 40, ['rbmw1', 'rbvb1', 'rbmhb1'], 0.001)
 
-    saver = tf.train.Saver()
-    sess.run(tf.global_variables_initializer())
-    epoch_number = 0
-    try:
-        ckpt = tf.train.get_checkpoint_state('stocks')
-        load_path = ckpt.model_checkpoint_path
-        saver.restore(sess, load_path)
-        epoch_number = int(load_path.split('-')[-1])
-        print("loaded model saved after {} epochs".format(epoch_number))
-    except:
-        pass
+rbmobject2 = RBM(40, 4, ['rbmw2', 'rbvb2', 'rbmhb2'], 0.001)
 
-    batches_per_epoch = train_records // BATCH_SIZE
-    data_indices = np.arange(train_records)
-    for train_iteration in range(EPOCHS_TO_TRAIN):
-        epoch = epoch_number + train_iteration + 1
-        total_loss = 0
-        curr_progress = 0
-        # shuffle data
+autoencoder = AutoEncoder(17, [40, 4], [['rbmw1', 'rbmhb1'],
+                                        ['rbmw2', 'rbmhb2']],
+                          tied_weights=False)
+
+ffnn = FFNN(17, [40, 4], [['rbmw1', 'rbmhb1'],
+                          ['rbmw2', 'rbmhb2']], transfer_function=tf.nn.sigmoid)
+data_indices = np.arange(train_records)
+
+if TRAIN_RBM:
+    print("Training RBM layer 1")
+    batches_per_epoch = train_records // RBM_BATCH_SIZE
+
+    for i in range(RBM_EPOCH_TO_TRAIN):
         np.random.shuffle(data_indices)
+        epoch_cost = 0.
+        curr_progress = 0
+
         for b in range(batches_per_epoch):
             # get data indices for slice
-            d_i_s = data_indices[b * BATCH_SIZE: (b + 1) * BATCH_SIZE]
+            d_i_s = data_indices[b * RBM_BATCH_SIZE: (b + 1) * RBM_BATCH_SIZE]
 
             _wr = wr[d_i_s, :]
             _dr = dr[d_i_s, :]
-            _cl = c_l[d_i_s].reshape((-1, 1))
-            _cs = c_s[d_i_s].reshape((-1, 1))
-            i = np.concatenate([_wr, _dr], axis=1)
-            o = np.concatenate([_cl, _cs], axis=1).astype(np.float32)
-            feed_dict = {
-                input: i,
-                observations: o
-            }
-            # l = sess.run(loss, feed_dict)
-            l, p, _ = sess.run([loss, predictions, train_step], feed_dict)
-            total_loss += l
+            input = np.concatenate([_wr, _dr], axis=1)
+
+            cost = rbmobject1.partial_fit(input)
+            epoch_cost += cost
             progress = b // (batches_per_epoch // 10)
             if progress != curr_progress:
                 print('.', sep=' ', end='', flush=True)
                 curr_progress = progress
+        print("Epoch cost: {:.3f}".format(epoch_cost / batches_per_epoch))
 
-        print("epoch: {} loss: {}".format(epoch, total_loss / batches_per_epoch))
-        saver.save(sess, 'stocks/stocks.ckpt', global_step=epoch)
-    for idx in range(data_set_records):
-        _wr = wr[[idx], :]
-        _dr = dr[[idx], :]
-        i = np.concatenate([_wr, _dr], axis=1)
-        feed_dict = {
-            input: i
-        }
-        p_dist = sess.run(predictions, feed_dict)
-        prob_l[idx] = p_dist[0, 0]
+    rbmobject1.save_weights('./rbm/rbmw1.chp')
 
-# naming convention: s_c_l mean Simple strategy Class Long e_c_l mean Enhanced strategy Class Long
-# naming convention: s_s_l mean Simple strategy Stock(selected) Long e_c_l mean Enhanced strategy Stock(selected) Long
+if TRAIN_RBM:
+    print("Training RBM layer 2")
+    for i in range(RBM_EPOCH_TO_TRAIN):
+        np.random.shuffle(data_indices)
+        epoch_cost = 0.
+        curr_progress = 0
 
-e_c_l = np.zeros((data_set_records), dtype=np.bool)
-e_c_s = np.zeros((data_set_records), dtype=np.bool)
+        for b in range(batches_per_epoch):
+            # get data indices for slice
+            d_i_s = data_indices[b * RBM_BATCH_SIZE: (b + 1) * RBM_BATCH_SIZE]
 
-e_s_l = np.zeros((data_set_records), dtype=np.bool)
-e_s_s = np.zeros((data_set_records), dtype=np.bool)
+            _wr = wr[d_i_s, :]
+            _dr = dr[d_i_s, :]
+            input = np.concatenate([_wr, _dr], axis=1)
 
-t_e_hpr = np.zeros((total_weeks))
-b_e_hpr = np.zeros((total_weeks))
-t_e_stocks = np.zeros((total_weeks))
-b_e_stocks = np.zeros((total_weeks))
+            input = rbmobject1.transform(input)
+            cost = rbmobject2.partial_fit(input)
+            epoch_cost += cost
+            progress = b // (batches_per_epoch // 10)
+            if progress != curr_progress:
+                print('.', sep=' ', end='', flush=True)
+                curr_progress = progress
+        print("Epoch cost: {:.3f}".format(epoch_cost / batches_per_epoch))
 
-for i in range(total_weeks):
-    w_i = i
-    beg = w_data_index[w_i]
-    end = beg + w_num_stocks[w_i]
+    rbmobject2.save_weights('./rbm/rbmw2.chp')
 
-    _prob_l = prob_l[beg: end]
+if TRAIN_AU:
 
-    median = np.median(_prob_l)
-    _e_c_l = e_c_l[beg: end]
-    _e_c_s = e_c_s[beg: end]
-    pred_long_cond = _prob_l >= median
-    _e_c_l |= pred_long_cond
-    _e_c_s |= ~pred_long_cond
+    print("Training Autoencoder")
 
-    top_bound = np.percentile(_prob_l, 100 - PERCENTILE)
-    bottom_bound = np.percentile(_prob_l, PERCENTILE)
-    _e_s_l = e_s_l[beg: end]
-    _e_s_s = e_s_s[beg: end]
-    long_cond = _prob_l >= top_bound
-    short_cond = _prob_l <= bottom_bound
-    _e_s_l |= long_cond
-    _e_s_s |= short_cond
-    _hpr = hpr[beg: end]
-    l_hpr = _hpr[_e_s_l]
-    s_hpr = _hpr[_e_s_s]
-    top_hpr = np.mean(l_hpr)
-    bottom_hpr = np.mean(s_hpr)
-    t_e_hpr[w_i] = top_hpr
-    b_e_hpr[w_i] = bottom_hpr
-    t_e_stocks[w_i] = l_hpr.shape[0]
-    b_e_stocks[w_i] = s_hpr.shape[0]
+    if LOAD_RBM_WEIGHTS:
+        autoencoder.load_rbm_weights('./rbm/rbmw1.chp', ['rbmw1', 'rbmhb1'], 0)
+        autoencoder.load_rbm_weights('./rbm/rbmw2.chp', ['rbmw2', 'rbmhb2'], 1)
+
+    batches_per_epoch = train_records // AU_BATCH_SIZE
+    for i in range(AU_EPOCH_TO_TRAIN):
+        np.random.shuffle(data_indices)
+        epoch_cost = 0.
+        curr_progress = 0
+
+        for b in range(batches_per_epoch):
+            # get data indices for slice
+            d_i_s = data_indices[b * AU_BATCH_SIZE: (b + 1) * AU_BATCH_SIZE]
+
+            _wr = wr[d_i_s, :]
+            _dr = dr[d_i_s, :]
+            input = np.concatenate([_wr, _dr], axis=1)
+
+            cost = autoencoder.partial_fit(input)
+            # print("Batch cost: {:.3f}".format(cost))
+            epoch_cost += cost
+            progress = b // (batches_per_epoch // 10)
+            if progress != curr_progress:
+                print('.', sep=' ', end='', flush=True)
+                curr_progress = progress
+        print("Epoch cost: {:.3f}".format(epoch_cost / batches_per_epoch))
+
+    autoencoder.save_weights('./rbm/au.chp')
+
+if TRAIN_FFNN:
+    print("Training FFNN")
+
+    if LOAD_AU_WEIGHTS:
+        ffnn.load_au_weights('./rbm/au.chp', ['rbmw1', 'rbmhb1'], 0)
+        ffnn.load_au_weights('./rbm/au.chp', ['rbmw2', 'rbmhb2'], 1)
+
+    batches_per_epoch = train_records // FFNN_BATCH_SIZE
+    for i in range(FFNN_EPOCH_TO_TRAIN):
+        np.random.shuffle(data_indices)
+        epoch_cost = 0.
+        curr_progress = 0
+
+        for b in range(batches_per_epoch):
+            # get data indices for slice
+            d_i_s = data_indices[b * FFNN_BATCH_SIZE: (b + 1) * FFNN_BATCH_SIZE]
+
+            _wr = wr[d_i_s, :]
+            _dr = dr[d_i_s, :]
+            input = np.concatenate([_wr, _dr], axis=1)
+
+            _cl = c_l[d_i_s].reshape((-1, 1))
+            _cs = c_s[d_i_s].reshape((-1, 1))
+            observation = np.concatenate([_cl, _cs], axis=1).astype(np.float32)
+
+            cost = ffnn.partial_fit(input, observation)
+            # print("Batch cost: {:.3f}".format(cost))
+            epoch_cost += cost
+            progress = b // (batches_per_epoch // 10)
+            if progress != curr_progress:
+                print('.', sep=' ', end='', flush=True)
+                curr_progress = progress
+        print("Epoch cost: {:.3f}".format(epoch_cost / batches_per_epoch))
+        if i % 10 == 0:
+            ffnn.save_weights('./rbm/ffnn.chp')
+
+    ffnn.save_weights('./rbm/ffnn.chp')
+else:
+    ffnn.load_weights('./rbm/ffnn.chp')
+
+print("Evaluating")
+b = 0
+curr_progress = 0
+batches_per_epoch = data_set_records // FFNN_BATCH_SIZE
+while True:
+    start_idx = b * FFNN_BATCH_SIZE
+    end_idx = (b + 1) * FFNN_BATCH_SIZE
+    d_i_s = np.arange(start_idx, min(end_idx, data_set_records))
+    _wr = wr[d_i_s, :]
+    _dr = dr[d_i_s, :]
+    input = np.concatenate([_wr, _dr], axis=1)
+    p_dist = ffnn.predict(input)
+    for idx in d_i_s:
+        prob_l[idx] = p_dist[idx - start_idx, 0]
+    if end_idx >= data_set_records:
+        break
+    progress = b // (batches_per_epoch // 10)
+    if progress != curr_progress:
+        print('.', sep=' ', end='', flush=True)
+        curr_progress = progress
+    b += 1
+
+# s_c_l, s_c_s, t_hpr, b_hpr, t_stocks, b_stocks = calc_classes_and_decisions(
+#     data_set_records, total_weeks, wr[:, NUM_WEEKS - 1]
+# )
+
+# confusion_matrix(c_l, c_s, s_c_l, s_c_s)
+# hpr_analysis(t_hpr, b_hpr)
+# wealth_graph(t_hpr, b_hpr, t_stocks, b_stocks, w_exit_index)
+
+e_c_l, e_c_s, t_e_hpr, b_e_hpr, t_e_stocks, b_e_stocks = calc_classes_and_decisions(
+    data_set_records, total_weeks, prob_l
+)
 
 confusion_matrix(c_l[train_records:], c_s[train_records:], e_c_l[train_records:], e_c_s[train_records:])
 hpr_analysis(t_e_hpr[train_weeks:], b_e_hpr[train_weeks:])
