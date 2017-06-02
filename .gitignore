@@ -5,3 +5,4 @@
 /eq
 /results
 *.pyc
+/load/*.csv
